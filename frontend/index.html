@@ -1,0 +1,1704 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Embrify · AI Email Summarizer</title>
+<style>
+  /* Embrify brand: colours taken from the logo (cyan → blue → violet → pink neon glow) */
+  :root {
+    --cyan: #22D3EE; --blue: #3B82F6; --violet: #8B5CF6; --pink: #EC4899;
+    --grad: linear-gradient(90deg, #22D3EE 0%, #3B82F6 33%, #8B5CF6 66%, #EC4899 100%);
+    --grad-fill: linear-gradient(100deg, #2563EB 0%, #7C3AED 55%, #DB2777 100%); /* deeper stops keep white text readable */
+    --grad-soft: linear-gradient(135deg, rgba(34,211,238,.12), rgba(139,92,246,.12) 50%, rgba(236,72,153,.12));
+
+    --background: #090D1F; --foreground: #E8EAFF;
+    --primary: #8B5CF6; --primary-foreground: #FFFFFF;
+    --tertiary: #22D3EE;
+    --muted: rgba(8, 12, 32, .65); --muted-foreground: #9AA3C7;
+    --accent: rgba(139, 92, 246, .14);
+    --card: rgba(22, 28, 60, .62); --card-solid: #141A38;
+    --destructive: #FB7185; --destructive-soft: rgba(251,113,133,.12);
+    --warn: #FBBF24; --warn-soft: rgba(251,191,36,.10);
+    --love: #F472B6;
+    --border: rgba(160, 170, 255, .16); --border-strong: rgba(160, 170, 255, .30); --input: rgba(160, 170, 255, .20);
+    --glow: 0 0 22px rgba(139, 92, 246, .45), 0 0 46px rgba(236, 72, 153, .22);
+    --glow-soft: 0 0 18px rgba(59, 130, 246, .20);
+    --radius: 14px; --radius-sm: 10px;
+    --font-sans: Inter, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    color: var(--foreground); font: 14px/1.55 var(--font-sans); -webkit-font-smoothing: antialiased;
+    background:
+      radial-gradient(900px 560px at 6% -10%, rgba(59,130,246,.36), transparent 62%),
+      radial-gradient(800px 560px at 102% -4%, rgba(236,72,153,.30), transparent 60%),
+      radial-gradient(900px 640px at 50% 118%, rgba(139,92,246,.32), transparent 62%),
+      radial-gradient(520px 420px at 42% 38%, rgba(34,211,238,.07), transparent 70%),
+      var(--background);
+    background-attachment: fixed;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 0; }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+  svg.i { width: 1em; height: 1em; flex: none; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .mono { font-family: var(--font-mono); }
+  .grad-text { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .kicker { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; margin: 0;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; display: inline-block; }
+  .muted { color: var(--muted-foreground); }
+  .glass { background: var(--card); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); }
+
+  /* ---- header */
+  header { height: 76px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; gap: 16px;
+    border-bottom: 1px solid var(--border); background: rgba(9, 13, 31, .55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    position: sticky; top: 0; z-index: 10; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo-mark { width: 60px; height: 46px; flex: none; filter: drop-shadow(0 0 8px rgba(139,92,246,.55)) drop-shadow(0 0 16px rgba(236,72,153,.28)); }
+  .brand-name { display: inline-block; font-size: 26px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; padding-bottom: 2px;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 10px rgba(139,92,246,.45)); }
+  .brand-sub { margin-top: 1px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #C9CEF2; }
+  .head-right { display: flex; align-items: center; gap: 16px; }
+  .model { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground);
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); }
+  .model b { font-weight: 600; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sq { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+  .sq.busy { background: var(--warn); box-shadow: 0 0 10px var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+  .sq.err { background: var(--destructive); box-shadow: 0 0 10px var(--destructive); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (max-width: 720px) { .model-label { display: none; } .reset-label { display: none; } .brand-sub { display: none; } }
+
+  /* ---- layout */
+  main { padding: 24px 28px 28px; }
+  @media (max-width: 720px) { main { padding: 16px; } header { padding: 0 16px; } }
+  .frame { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }  /* each panel only as tall as its content */
+  @media (max-width: 1024px) { .frame { grid-template-columns: 1fr; } }
+  .pane { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    background: var(--card); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04); }
+  .pane-head { padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  h1 { margin: 6px 0 0; font-size: 24px; font-weight: 700; letter-spacing: -.015em; }
+  h2 { margin: 6px 0 0; font-size: 18px; font-weight: 600; }
+  .links { display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; padding-top: 2px; flex-wrap: wrap; justify-content: flex-end; }
+
+  /* ---- input console */
+  .console { padding: 22px; flex: 1; display: flex; flex-direction: column; }
+  textarea {
+    flex: none; min-height: 220px; max-height: 70vh; overflow-y: auto; width: 100%; resize: vertical;  /* height follows the text (autoGrow) */ padding: 16px; border: 1px solid var(--input); border-radius: var(--radius-sm);
+    background: var(--muted); color: var(--foreground); font: 13px/1.65 var(--font-mono); transition: border-color .2s, box-shadow .2s;
+  }
+  textarea::placeholder { color: var(--muted-foreground); }
+  textarea:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet), 0 0 24px rgba(139,92,246,.30); }
+  textarea.drag { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 0 24px rgba(34,211,238,.35); }
+  .counter { margin-top: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); text-transform: uppercase; }
+  .section-row { margin-top: 30px; display: flex; justify-content: space-between; align-items: center; }
+  .section-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted-foreground); margin: 0; }
+  .lenses { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .advanced { margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--muted); padding: 16px; display: grid; gap: 16px; }
+  .setting label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .setting output { font-family: var(--font-mono); color: var(--cyan); }
+  .setting small { color: var(--muted-foreground); font-size: 12px; }
+  input[type=range] { width: 100%; accent-color: var(--violet); }
+  .gen-row { margin-top: 24px; display: flex; justify-content: flex-end; }
+
+  /* ---- response canvas */
+  .bar-top { height: 3px; background: rgba(160,170,255,.10); overflow: hidden; position: relative; }
+  .bar-top > div { height: 100%; width: 0; background: var(--grad); box-shadow: 0 0 12px rgba(139,92,246,.8); transition: width .3s; }
+  .bar-top.loading > div { width: 35%; position: absolute; animation: slide 1.1s ease-in-out infinite; }
+  @keyframes slide { from { left: -35%; } to { left: 100%; } }
+  .head-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .lens-tag { font-family: var(--font-mono); font-size: 10px; color: var(--cyan); padding: 4px 10px; border-radius: 999px; text-transform: uppercase;
+    background: rgba(34,211,238,.08); border: 1px solid rgba(34,211,238,.25); }
+  .canvas { flex: 1; padding: 22px; display: flex; flex-direction: column; min-height: 420px; }
+  .center { margin: auto; }
+
+  .empty { max-width: 400px; width: 100%; border: 1px dashed var(--border-strong); border-radius: var(--radius); padding: 34px; text-align: center; background: var(--grad-soft); }
+  .empty-icon { width: 56px; height: 56px; margin: 0 auto 20px; border-radius: 16px; display: grid; place-items: center; color: #fff; font-size: 22px;
+    background: var(--grad-fill); box-shadow: var(--glow); }
+  .empty h3 { margin: 0; font-size: 18px; font-weight: 600; }
+  .empty p { margin: 8px 0 0; font-size: 14px; color: var(--muted-foreground); text-wrap: pretty; }
+  .empty-foot { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+  .empty-foot span:first-child { color: var(--cyan); }
+  .empty-foot span:last-child { color: var(--pink); }
+  .working { text-align: center; max-width: 300px; }
+  .spinner { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 16px; border: 3px solid rgba(160,170,255,.14); border-top-color: var(--cyan); border-right-color: var(--violet);
+    animation: spin .8s linear infinite; filter: drop-shadow(0 0 6px rgba(139,92,246,.6)); }
+  .spinner.sm { width: 14px; height: 14px; margin: 0; border-width: 2px; display: inline-block; filter: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .working p { font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); margin: 0; }
+
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .options { grid-template-columns: 1fr; } }
+  .option { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: 20px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px;
+    cursor: pointer; transition: border-color .2s, box-shadow .2s, opacity .2s, transform .15s; }
+  .option:hover { border-color: var(--border-strong); box-shadow: var(--glow-soft); }
+  .option.locked { cursor: default; }
+  .option.chosen { border-color: transparent; background: linear-gradient(#151A3D, #151A3D) padding-box, var(--grad) border-box; box-shadow: var(--glow); }
+  .option.rejected { opacity: .42; }
+  .opt-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .opt-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+  .option[data-i="0"] .opt-name { color: var(--cyan); }
+  .option[data-i="1"] .opt-name { color: var(--pink); }
+  .opt-check { color: var(--love); font-size: 18px; filter: drop-shadow(0 0 6px rgba(236,72,153,.7)); }
+
+  .md { font-size: 13.5px; color: #B9C0E4; line-height: 1.65; }
+  .md p { margin: 0 0 10px; }
+  .md > :last-child { margin-bottom: 0; }
+  .md ul, .md ol { margin: 0 0 10px; padding-left: 18px; }
+  .md li { margin: 0 0 8px; }
+  .md li::marker { color: var(--violet); }
+  .md li.sub { margin-left: 16px; list-style-type: circle; }
+  .md h4 { margin: 10px 0 6px; font-size: 14px; color: var(--foreground); }
+  .md strong { color: var(--foreground); font-weight: 600; }
+  .md code { font-family: var(--font-mono); font-size: 12px; background: var(--accent); padding: 1px 6px; border-radius: 6px; }
+  .caret > p:last-child::after, .caret > h4:last-child::after, .caret > ul:last-child > li:last-child::after, .caret > ol:last-child > li:last-child::after { content: ""; display: inline-block; width: 7px; height: 1em; margin-left: 2px; vertical-align: -2px; background: var(--grad); border-radius: 2px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .single { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: 22px; }
+  .single .md { font-size: 14.5px; color: var(--foreground); }
+  .single-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+
+  .banner { margin-top: 16px; border-radius: var(--radius-sm); padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-family: var(--font-mono); font-size: 12px;
+    border: 1px solid transparent; background: linear-gradient(#141A3A, #141A3A) padding-box, var(--grad) border-box; }
+  .banner > span { display: flex; align-items: center; gap: 8px; }
+  .banner .spark { color: var(--love); animation: pulse 1.6s ease-in-out infinite; }
+  .banner.warn { border-color: rgba(251,191,36,.35); background: var(--warn-soft); color: var(--warn); }
+  .banner.err { border-color: rgba(251,113,133,.35); background: var(--destructive-soft); color: var(--destructive); }
+  .hint { margin-top: 12px; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: center; }
+  kbd { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--border-strong); border-radius: 5px; padding: 0 5px; color: var(--foreground); }
+
+  /* ---- voice */
+  .counter-right { display: flex; align-items: center; gap: 14px; }
+  .voice-status { color: var(--cyan); display: inline-flex; align-items: center; gap: 6px; }
+  .voice-status .spinner.sm, .listen .spinner.sm { width: 11px; height: 11px; border-color: rgba(34,211,238,.2); border-top-color: var(--cyan); }
+  .opt-tools { display: flex; align-items: center; gap: 12px; }
+  select { width: 100%; background: var(--muted); color: var(--foreground); border: 1px solid var(--input); border-radius: var(--radius-sm); padding: 9px 12px; font: 13px var(--font-sans); }
+  select:focus { outline: none; border-color: var(--violet); box-shadow: 0 0 14px rgba(139,92,246,.3); }
+  select option { background: var(--card-solid); }
+  .single-tools { display: flex; gap: 12px; align-items: center; }
+
+  /* ---- preference profile */
+  .profile { border-top: 1px solid var(--border); padding: 18px 22px; display: grid; gap: 10px; background: rgba(8,12,32,.35); }
+  .profile-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .profile-count { font-family: var(--font-mono); font-size: 13px; font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .meter { position: relative; height: 8px; border-radius: 999px; background: rgba(160,170,255,.12); }
+  .meter-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 999px; background: var(--grad); opacity: .55; transition: width .4s ease; }
+  .meter-fill.ready { opacity: 1; box-shadow: 0 0 14px rgba(139,92,246,.7); }
+  .meter-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 2px; background: #fff; opacity: .55; }
+  .profile-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .profile-text { font-size: 13px; color: var(--muted-foreground); }
+  .profile-meta { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: .06em; }
+  .train-msg { font-size: 13px; padding: 10px 12px; border-radius: var(--radius-sm); display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); }
+  .train-msg.training { color: var(--warn); background: var(--warn-soft); border-color: rgba(251,191,36,.35); }
+  .train-msg.training .spinner { border-color: rgba(251,191,36,.25); border-top-color: var(--warn); }
+  .train-msg.done { color: #E9D5FF; border-color: transparent; background: linear-gradient(#171C42, #171C42) padding-box, var(--grad) border-box; }
+  .train-msg.error { color: var(--destructive); background: var(--destructive-soft); border-color: rgba(251,113,133,.35); }
+
+  footer.canvas-foot { padding: 14px 22px; border-top: 1px solid var(--border); font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  footer.canvas-foot span:first-child { display: flex; align-items: center; gap: 8px; }
+  footer.canvas-foot svg { color: var(--cyan); font-size: 16px; filter: drop-shadow(0 0 6px rgba(34,211,238,.6)); }
+  #versionTag { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 700; }
+
+  /* ---- buttons: .Btn from Uiverse.io by vinodjangid07, used for every button on the page */
+  .Btn {
+    --btn-bg: rgb(151, 95, 255); --btn-hi: rgb(210, 187, 253); --btn-lo: rgb(124, 54, 255);
+    position: relative;
+    min-width: 150px;
+    height: 55px;
+    padding: 0 28px;
+    border-radius: 45px;
+    border: none;
+    background-color: var(--btn-bg);
+    color: white;
+    box-shadow: 0px 10px 10px var(--btn-hi) inset,
+    0px 5px 10px rgba(5, 5, 5, 0.212),
+    0px -10px 10px var(--btn-lo) inset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 700; font-size: 14px; white-space: nowrap;
+    transition: background-color .2s, color .2s, opacity .2s;
+  }
+  .Btn::before {
+    width: 70%;
+    height: 2px;
+    position: absolute;
+    background-color: rgba(250, 250, 250, 0.678);
+    content: "";
+    filter: blur(1px);
+    top: 7px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .Btn::after {
+    width: 70%;
+    height: 2px;
+    position: absolute;
+    background-color: rgba(250, 250, 250, 0.137);
+    content: "";
+    filter: blur(1px);
+    bottom: 7px;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .Btn:hover:not(:disabled) {
+    animation: jello-horizontal 0.9s both;
+  }
+
+  /* sizes: default (55px, as in the original), medium and small */
+  .Btn-md { min-width: 0; height: 42px; padding: 0 20px; font: 700 12px var(--font-mono); letter-spacing: .04em;
+    box-shadow: 0 7px 8px var(--btn-hi) inset, 0 4px 8px rgba(5, 5, 5, .212), 0 -7px 8px var(--btn-lo) inset; }
+  .Btn-md::before { top: 5px; }
+  .Btn-md::after { bottom: 5px; }
+  .Btn-sm { min-width: 0; height: 30px; padding: 0 13px; gap: 6px; font: 700 11px var(--font-mono); letter-spacing: .05em;
+    box-shadow: 0 5px 6px var(--btn-hi) inset, 0 3px 6px rgba(5, 5, 5, .25), 0 -5px 6px var(--btn-lo) inset; }
+  .Btn-sm::before { top: 4px; height: 1.5px; }
+  .Btn-sm::after { bottom: 4px; height: 1.5px; }
+
+  /* colours */
+  .Btn-dark { --btn-bg: rgb(58, 50, 104); --btn-hi: rgba(170, 150, 255, .45); --btn-lo: rgb(33, 27, 72); color: #D6D2FF; }
+  .Btn-dark:hover:not(:disabled) { --btn-bg: rgb(78, 66, 142); color: #fff; }
+  .Btn[aria-pressed="true"], .Btn[aria-selected="true"], .Btn[aria-expanded="true"], .Btn.playing {
+    --btn-bg: rgb(151, 95, 255); --btn-hi: rgb(210, 187, 253); --btn-lo: rgb(124, 54, 255); color: #fff; }
+  .Btn.stop, .Btn.rec { --btn-bg: rgb(244, 63, 94); --btn-hi: rgb(253, 164, 175); --btn-lo: rgb(190, 18, 60); color: #fff; }
+  .Btn:disabled { --btn-bg: rgb(74, 70, 110); --btn-hi: rgba(180, 175, 230, .35); --btn-lo: rgb(48, 44, 80);
+    color: rgba(255, 255, 255, .6); opacity: 1; cursor: not-allowed; }
+
+  /* things inside buttons */
+  .Btn .mono { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .18); }
+  .Btn .spinner.sm { width: 11px; height: 11px; border-color: rgba(255, 255, 255, .3); border-top-color: #fff; }
+  .Btn.lens { font: 600 13.5px var(--font-sans); letter-spacing: 0; }
+  .modes { display: flex; gap: 6px; }
+  .adv-toggle svg { transition: transform .2s; }
+  .adv-toggle[aria-expanded="true"] svg { transform: rotate(90deg); }
+
+  @keyframes jello-horizontal {
+    0% {
+      transform: scale3d(1, 1, 1);
+    }
+
+    30% {
+      transform: scale3d(1.25, 0.75, 1);
+    }
+
+    40% {
+      transform: scale3d(0.75, 1.25, 1);
+    }
+
+    50% {
+      transform: scale3d(1.15, 0.85, 1);
+    }
+
+    65% {
+      transform: scale3d(0.95, 1.05, 1);
+    }
+
+    75% {
+      transform: scale3d(1.05, 0.95, 1);
+    }
+
+    100% {
+      transform: scale3d(1, 1, 1);
+    }
+  }
+  @keyframes pop { 40% { transform: scale(1.5); } }
+  @media (prefers-reduced-motion: reduce) { .Btn:hover:not(:disabled) { animation: none; } }
+
+  /* ---- love / prefer button: .gradient-button from Uiverse.io by M4rco592 */
+  .gradient-button {
+    position: relative;
+    padding: 16px 32px;
+    font-size: 18px;
+    font-weight: bold;
+    color: white;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 50px;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+    isolation: isolate; /* keeps the glow layers (z-index -1/-2) inside the button, above the card */
+    width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    font-family: var(--font-sans); letter-spacing: .02em;
+    padding-inline: 20px; white-space: nowrap; /* fits the half-width option cards on one line */
+  }
+
+  .gradient-button:hover {
+    transform: scale(1.03);
+  }
+
+  .gradient-button::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg,
+      #ff6b6b,
+      #4ecdc4,
+      #45b7d1,
+      #96ceb4,
+      #feca57,
+      #ff9ff3,
+      #ff6b6b
+    );
+    z-index: -2;
+    filter: blur(10px);
+    transform: rotate(0deg);
+    transition: transform 1.5s ease-in-out;
+  }
+
+  .gradient-button:hover::before {
+    transform: rotate(180deg);
+  }
+
+  .gradient-button::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: black;
+    border-radius: 47px;
+    z-index: -1;
+    filter: blur(5px);
+  }
+
+  .gradient-text {
+    color: transparent;
+    background: conic-gradient(
+      from 0deg,
+      #ff6b6b,
+      #4ecdc4,
+      #45b7d1,
+      #96ceb4,
+      #feca57,
+      #ff9ff3,
+      #ff6b6b
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    filter: hue-rotate(0deg);
+  }
+
+  .gradient-button:hover .gradient-text {
+    animation: hue-rotating 2s linear infinite;
+  }
+
+  .gradient-button:active {
+    transform: scale(0.99);
+  }
+
+  @keyframes hue-rotating {
+    to {
+      filter: hue-rotate(360deg);
+    }
+  }
+
+  /* the heart, and the states of the prefer button */
+  .gradient-button svg { width: 20px; height: 20px; color: #ff9ff3; filter: drop-shadow(0 0 6px rgba(255, 159, 243, .6)); transition: transform .2s; }
+  .gradient-button:hover:not(:disabled) svg { transform: scale(1.15); }
+  .gradient-button:disabled { cursor: default; opacity: 1; }
+  .gradient-button:disabled:hover { transform: none; }
+  .option.chosen .gradient-button::before { transform: rotate(180deg); filter: blur(6px); }            /* brighter, settled glow */
+  .option.chosen .gradient-button::after { inset: 4px; background: #150d2e; }
+  .option.chosen .gradient-button .gradient-text { animation: hue-rotating 2s linear infinite; }       /* keeps shimmering once loved */
+  .option.chosen .gradient-button svg { fill: #ff6b9d; color: #ff6b9d; animation: pop .35s ease; filter: drop-shadow(0 0 8px rgba(255, 107, 157, .9)); }
+  .option.rejected .gradient-button, .option.locked .gradient-button { opacity: .4; filter: grayscale(.6); }
+  @media (prefers-reduced-motion: reduce) {
+    .gradient-button:hover .gradient-text, .option.chosen .gradient-button .gradient-text { animation: none; }
+    .gradient-button::before { transition: none; }
+  }
+
+  /* ---- compare loading screen: Lottie animation inside a glowing RGB ring */
+  .loader { text-align: center; max-width: 360px; }
+  .loader-ring { position: relative; width: 208px; height: 208px; margin: 0 auto 22px; border-radius: 50%; isolation: isolate; display: grid; place-items: center; }
+  .loader-ring::before, .loader-ring::after {
+    content: ""; position: absolute; border-radius: 50%;
+    background: conic-gradient(from 0deg, #ff004c, #ff8a00, #ffe600, #22ff6a, #00e0ff, #4d5bff, #c800ff, #ff00a8, #ff004c);
+    animation: rgb-spin 3s linear infinite;
+  }
+  .loader-ring::before { inset: -10px; filter: blur(22px); opacity: .9; z-index: -3; }                      /* the glow */
+  .loader-ring::after { inset: 0; z-index: -2;                                                                /* the crisp ring */
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
+  .loader-core { position: absolute; inset: 4px; border-radius: 50%; z-index: -1;
+    background: radial-gradient(circle at 50% 40%, #1c2154, #0b0e27 70%); box-shadow: inset 0 0 30px rgba(139, 92, 246, .35); }
+  .loader-ring canvas { width: 168px; height: 168px; opacity: 0; transition: opacity .4s; }
+  .loader-ring.ready canvas { opacity: 1; }
+  .loader-ring .loader-fallback { position: absolute; margin: 0; }
+  .loader-ring.ready .loader-fallback { display: none; }
+  .loader-title { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: .02em;
+    background: linear-gradient(90deg, #ff004c, #ff8a00, #ffe600, #22ff6a, #00e0ff, #4d5bff, #c800ff, #ff00a8, #ff004c);
+    background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 10px rgba(200, 0, 255, .45)); animation: rgb-slide 3s linear infinite; }
+  .loader-dots i { font-style: normal; display: inline-block; animation: dot-bounce 1.2s ease-in-out infinite; }
+  .loader-dots i { color: #ff00a8; }
+  .loader-dots i:nth-child(2) { animation-delay: .15s; color: #c800ff; }
+  .loader-dots i:nth-child(3) { animation-delay: .3s; color: #00e0ff; }
+  .loader p { margin: 10px 0 0; font-family: var(--font-mono); font-size: 12px; color: var(--muted-foreground); }
+  @keyframes rgb-spin { to { transform: rotate(360deg); } }
+  @keyframes rgb-slide { to { background-position: 200% 0; } }
+  @keyframes dot-bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .loader-ring::before, .loader-ring::after, .loader-title, .loader-dots i { animation-duration: 12s; }
+  }
+
+  /* ---- model version radio buttons (header) */
+  .model { flex-wrap: wrap; row-gap: 4px; }
+  .versions { display: flex; align-items: center; gap: 4px; }
+  .ver { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px;
+    cursor: pointer; color: var(--muted-foreground); transition: background .15s, color .15s; }
+  .ver:hover { background: rgba(160, 170, 255, .10); color: var(--foreground); }
+  .ver input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+  .ver-dot { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: grid; place-items: center; flex: none; transition: .15s; }
+  .ver-dot::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #fff; transform: scale(0); transition: transform .15s; }
+  .ver input:checked + .ver-dot { border-color: transparent; background: conic-gradient(from 0deg, #22D3EE, #3B82F6, #8B5CF6, #EC4899, #22D3EE); box-shadow: 0 0 8px rgba(139, 92, 246, .7); }
+  .ver input:checked + .ver-dot::after { transform: scale(1); }
+  .ver input:checked ~ .ver-name { font-weight: 700; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ver input:focus-visible + .ver-dot { outline: 2px solid var(--cyan); outline-offset: 2px; }
+  .ver input:disabled ~ * { opacity: .5; }
+  .ver:has(input:disabled) { cursor: not-allowed; }
+  .ver-tag { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; padding: 1px 5px; border-radius: 999px; color: var(--cyan); border: 1px solid rgba(34, 211, 238, .35); }
+
+  /* ---- jelly effect on the Embrify logo + name (same jello-horizontal as the buttons) */
+  .brand { cursor: default; transform-origin: 30% 50%; will-change: transform; }
+  .brand:hover { animation: jello-horizontal 0.9s both; }
+  @media (prefers-reduced-motion: reduce) { .brand:hover { animation: none; } }
+
+  /* ================================================================== responsive: tablet + mobile */
+  html, body { overflow-x: hidden; }                          /* the jelly wobble must never make the page scroll sideways */
+  .brand-sub, .model { white-space: nowrap; }
+  .model { flex-wrap: nowrap; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .model::-webkit-scrollbar { display: none; }
+  .lenses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* an odd number of styles: centre the last one on its own row, same width as the others */
+  .lenses .lens:last-child:nth-child(odd) { grid-column: 1 / -1; justify-self: center; width: calc(50% - 5px); }
+  .Btn.lens { white-space: normal; height: auto; min-height: 44px; padding: 8px 14px; line-height: 1.25; text-align: center; }
+  .pane-head > div:first-child { min-width: 0; }
+
+  /* single-column layout (tablet portrait and smaller) */
+  @media (max-width: 1024px) {
+    .frame { min-height: 0; }
+    .canvas { min-height: 380px; }
+    textarea { min-height: 200px; }
+  }
+
+  /* tablet / large phone: header wraps into two rows */
+  @media (max-width: 860px) {
+    header { height: auto; min-height: 64px; padding: 10px 16px; flex-wrap: wrap; row-gap: 8px; }
+    .head-right { flex: 1 1 100%; justify-content: space-between; gap: 10px; min-width: 0; }
+    .model { flex: 1 1 auto; }
+    .logo-mark { width: 50px; height: 38px; }
+    .brand-name { font-size: 22px; }
+    main { padding: 16px; }
+    .frame { gap: 16px; }
+  }
+
+  /* phone */
+  @media (max-width: 640px) {
+    header { padding: 8px 12px; }
+    .brand-sub { display: block; font-size: 9px; letter-spacing: .18em; }      /* keep the tagline, just smaller */
+    main { padding: 12px; }
+    .pane { border-radius: 12px; }
+    .pane-head { padding: 14px 16px; flex-wrap: wrap; }
+    .pane-head > div:first-child { flex: 1 1 100%; }
+    .links { justify-content: flex-start; }
+    .head-tools { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+    h1 { font-size: 20px; }
+    h2 { font-size: 17px; }
+    .console, .canvas { padding: 16px; }
+    textarea { min-height: 180px; font-size: 16px; padding: 12px; }             /* 16px stops iOS zooming in on focus */
+    select { font-size: 16px; }
+    .counter { font-size: 11px; }
+    .section-row { margin-top: 22px; }
+    .lenses { gap: 8px; }
+    .gen-row { margin-top: 18px; }
+    .gen-row .Btn { width: 100%; min-width: 0; }
+    .options { gap: 12px; }
+    .option { padding: 16px; }
+    .gradient-button { font-size: 16px; padding: 14px 16px; }
+    .empty { padding: 24px 18px; }
+    .loader-ring { width: 170px; height: 170px; }
+    .loader-ring canvas { width: 136px; height: 136px; }
+    .loader-title { font-size: 22px; }
+    .profile { padding: 16px; }
+    .banner { flex-wrap: wrap; }
+    footer.canvas-foot { flex-wrap: wrap; padding: 12px 16px; line-height: 1.5; }
+    .ver-tag { display: none; }                                                  /* the rainbow dot already marks the chosen one */
+    .model { flex-wrap: wrap; white-space: normal; overflow: visible; border-radius: 14px; row-gap: 2px; }   /* show every version, no hidden scroll */
+    .versions { flex-wrap: wrap; }
+  }
+
+  /* very small phones */
+  @media (max-width: 380px) {
+    .lenses { grid-template-columns: 1fr; }
+    .lenses .lens:last-child:nth-child(odd) { width: 100%; }
+    .Btn-sm { padding: 0 10px; }
+  }
+
+  /* touch screens: bigger tap targets, no keyboard-shortcut hints */
+  @media (hover: none) and (pointer: coarse) {
+    .Btn-sm { height: 38px; }
+    .Btn-md { height: 44px; }
+    .ver { padding: 7px 10px 7px 8px; }
+    #shortcut, .Btn .mono, .kbd-hint { display: none; }
+    input[type=range] { height: 28px; }
+  }
+
+  /* ================================================================== "AI is writing" animations */
+  @property --ring-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+  /* animated rainbow border + breathing glow on the summary card while text streams in */
+  .single { position: relative; }
+  .single.generating { border-color: transparent; animation: gen-glow 2.4s ease-in-out infinite; }
+  .single.generating::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 2px; pointer-events: none;
+    background: conic-gradient(from var(--ring-angle), #ff004c, #ff8a00, #ffe600, #22ff6a, #00e0ff, #4d5bff, #c800ff, #ff00a8, #ff004c);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    animation: ring-turn 3s linear infinite;
+  }
+  @keyframes ring-turn { to { --ring-angle: 360deg; } }
+  @keyframes gen-glow {
+    0%, 100% { box-shadow: 0 0 18px rgba(139, 92, 246, .35), 0 0 40px rgba(34, 211, 238, .12); }
+    50% { box-shadow: 0 0 26px rgba(236, 72, 153, .45), 0 0 60px rgba(139, 92, 246, .22); }
+  }
+  /* "AI is writing" chip with bouncing gradient dots */
+  .typing { display: inline-flex; align-items: center; gap: 8px; color: var(--cyan); font-weight: 600; letter-spacing: .04em; }
+  .typing-dots { display: inline-flex; gap: 4px; }
+  .typing-dots i { width: 6px; height: 6px; border-radius: 50%; animation: dot-bounce 1.2s ease-in-out infinite; }
+  .typing-dots i:nth-child(1) { background: #22D3EE; }
+  .typing-dots i:nth-child(2) { background: #8B5CF6; animation-delay: .15s; }
+  .typing-dots i:nth-child(3) { background: #EC4899; animation-delay: .3s; }
+  /* results slide up into place once */
+  .enter { animation: rise-in .5s cubic-bezier(.2, .8, .2, 1) both; }
+  .options .option.enter:nth-child(2) { animation-delay: .12s; }
+  .banner.enter { animation-delay: .1s; }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) {
+    .single.generating, .single.generating::before, .typing-dots i { animation: none; }
+    .enter { animation-duration: .01s; }
+  }
+
+  /* ================================================================== email assistant: full analysis */
+  .analysis { display: grid; gap: 12px; position: relative; border-radius: var(--radius); padding: 2px; }
+  .analysis.generating { animation: gen-glow 2.4s ease-in-out infinite; }
+  .an-sec { border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); padding: 14px 16px; }
+  .an-sec.enter { animation: rise-in .45s cubic-bezier(.2, .8, .2, 1) both; }
+  .an-sec.active { border-color: rgba(139, 92, 246, .55); box-shadow: 0 0 18px rgba(139, 92, 246, .25); }
+  .an-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .an-icon { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 15px; flex: none;
+    background: var(--grad-fill); box-shadow: 0 0 12px rgba(139, 92, 246, .45); }
+  .an-sec.pending .an-icon { background: rgba(160, 170, 255, .14); box-shadow: none; color: var(--muted-foreground); }
+  .an-head h3 { margin: 0; font-size: 13px; font-family: var(--font-mono); letter-spacing: .08em; text-transform: uppercase;
+    background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .an-sec.pending h3 { background: none; color: var(--muted-foreground); }
+  .an-head .an-tools { margin-left: auto; display: flex; gap: 8px; }
+  .an-body { font-size: 14px; line-height: 1.6; color: var(--foreground); }
+  .an-body .md { color: var(--foreground); font-size: 14px; }
+  .an-body .muted-line { color: var(--muted-foreground); font-style: italic; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    font-family: var(--font-mono); letter-spacing: .03em; border: 1px solid var(--border-strong); background: rgba(160, 170, 255, .08); margin-right: 8px; }
+  .chip.intent { color: #E9D5FF; border-color: rgba(139, 92, 246, .55); background: rgba(139, 92, 246, .16); }
+  .chip.high { color: #FECDD3; border-color: rgba(244, 63, 94, .6); background: rgba(244, 63, 94, .16); box-shadow: 0 0 12px rgba(244, 63, 94, .3); }
+  .chip.medium { color: #FDE68A; border-color: rgba(251, 191, 36, .55); background: rgba(251, 191, 36, .12); }
+  .chip.low { color: #A7F3D0; border-color: rgba(52, 211, 153, .5); background: rgba(52, 211, 153, .12); }
+  .chip.tone { color: #BAE6FD; border-color: rgba(34, 211, 238, .45); background: rgba(34, 211, 238, .10); }
+  .chip-row { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
+  .reasons { color: var(--muted-foreground); font-size: 12.5px; margin-top: 6px; }
+  .deadline-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .deadline-list li { display: flex; gap: 10px; align-items: baseline; }
+  .deadline-list .when { flex: none; font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--cyan);
+    padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(34, 211, 238, .4); background: rgba(34, 211, 238, .08); }
+  .reply { white-space: pre-wrap; font-size: 14px; line-height: 1.65; padding: 12px 14px; border-radius: var(--radius-sm);
+    background: rgba(8, 12, 32, .7); border: 1px dashed var(--border-strong); }
+  .skel { height: 10px; border-radius: 6px; margin: 9px 0; background: linear-gradient(90deg, rgba(160,170,255,.07), rgba(160,170,255,.2), rgba(160,170,255,.07));
+    background-size: 200% 100%; animation: shimmer 1.3s linear infinite; }
+  .skel.w80 { width: 80%; } .skel.w55 { width: 55%; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .an-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 2px 0;
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+  .an-foot .single-tools { flex-wrap: wrap; }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } .analysis.generating { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 66 50" class="logo-mark" role="img" aria-label="Embrify logo">
+  <defs>
+    <linearGradient id="lgMain" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset=".35" stop-color="#3B82F6"/><stop offset=".68" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="lgBubble" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7C3AED"/><stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+    <linearGradient id="lgMic" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="lgEnv" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3B82F6"/><stop offset=".55" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/>
+    </linearGradient>
+  </defs>
+  <!-- sound waves + microphone -->
+  <path d="M1.5 26h3" stroke="#22D3EE" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M6 21.5v9" stroke="#22D3EE" stroke-width="1.6" stroke-linecap="round" opacity=".8"/>
+  <rect x="9" y="15" width="8.5" height="15" rx="4.25" fill="url(#lgMic)"/>
+  <path d="M7.6 24.5a5.65 5.65 0 0 0 11.3 0" fill="none" stroke="url(#lgMic)" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M13.25 30.2v5.3M10 35.5h6.5" stroke="#3B82F6" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- envelope -->
+  <rect x="21" y="21" width="41" height="26" rx="3.5" fill="url(#lgEnv)" fill-opacity=".22" stroke="url(#lgEnv)" stroke-width="2.2"/>
+  <path d="M22.5 23.2 41.5 36.2 60.5 23.2" fill="none" stroke="url(#lgEnv)" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M22.5 45.5 36.5 34.5M60.5 45.5 46.5 34.5" fill="none" stroke="url(#lgEnv)" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>
+  <!-- chat bubble -->
+  <path d="M34 2.5h22.5a6 6 0 0 1 6 6v5.5a6 6 0 0 1-6 6H41.5l-4.5 4.2v-4.2H34a6 6 0 0 1-6-6V8.5a6 6 0 0 1 6-6Z" fill="url(#lgBubble)"/>
+  <path d="M34.5 8h19M34.5 11.5h15M34.5 15h10" stroke="#FFFFFF" stroke-opacity=".92" stroke-width="1.8" stroke-linecap="round"/>
+</svg>
+    <div>
+      <div class="brand-name">Embrify</div>
+      <div class="brand-sub">AI Email Summarizer</div>
+    </div>
+  </div>
+  <div class="head-right">
+    <div class="model" title="Runs locally on this computer">
+      <span class="sq" id="statusDot"></span>
+      <span class="model-label">Model:</span>
+      <span class="versions" id="versions" role="radiogroup" aria-label="Model version"><b>Custom-v1</b></span>
+      <span id="statusText">· Connecting</span>
+    </div>
+    <button class="Btn Btn-md" id="resetBtn" type="button" title="Reset workspace"><span data-icon="rotate-ccw"></span><span class="reset-label">RESET</span></button>
+  </div>
+</header>
+
+<main>
+  <div class="frame">
+    <!-- Input console -->
+    <section class="pane">
+      <div class="pane-head">
+        <div>
+          <p class="kicker">Input console</p>
+          <h1>Source Email Thread</h1>
+        </div>
+        <div class="links">
+          <button class="Btn Btn-sm" id="sampleBtn" type="button">LOAD SAMPLE</button>
+          <button class="Btn Btn-sm Btn-dark" id="dictateBtn" type="button" title="Speak the email; it is transcribed on this computer">DICTATE</button>
+          <button class="Btn Btn-sm Btn-dark" id="importBtn" type="button" title="Import an .eml or .txt email, or an audio recording">IMPORT FILE</button>
+          <button class="Btn Btn-sm Btn-dark" id="clearEmailBtn" type="button" title="Clear the source email" disabled>CLEAR</button>
+          <input type="file" id="fileInput" accept=".eml,.txt,message/rfc822,text/plain,audio/*,.mp3,.wav,.m4a,.ogg,.webm,.flac" hidden>
+        </div>
+      </div>
+      <div class="console">
+        <textarea id="email" spellcheck="false" placeholder="Paste a full email thread here, including context, replies, and forwarded messages.&#10;&#10;You can also DICTATE it, or drop an .eml or audio file here. Embrify will compare two summaries against your evolving preference profile."></textarea>
+        <div class="counter">
+          <span id="counts">0 words · 0 chars</span>
+          <span class="counter-right">
+            <span class="voice-status" id="voiceStatus" hidden></span>
+            <span id="shortcut">Ctrl + Enter to generate</span>
+            <button class="Btn Btn-sm Btn-dark listen" type="button" data-listen="source" title="Read the source email aloud"></button>
+          </span>
+        </div>
+
+        <div class="section-row">
+          <p class="section-label">Summary lens</p>
+          <button class="Btn Btn-sm Btn-dark adv-toggle" id="advToggle" type="button" aria-expanded="false" aria-controls="advanced">ADVANCED <span data-icon="chevron-right"></span></button>
+        </div>
+        <div class="lenses" id="lenses" role="group" aria-label="Summary lens"></div>
+
+        <div class="advanced" id="advanced" hidden>
+          <div class="setting">
+            <label for="maxTokens">Max length <output id="maxTokensOut">256</output></label>
+            <input type="range" id="maxTokens" min="32" max="1024" step="32" value="256">
+            <small>Upper limit on tokens per summary. Generation stops earlier when the summary is complete.</small>
+          </div>
+          <div class="setting">
+            <label for="temperature">Temperature <output id="temperatureOut">0.7</output></label>
+            <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7">
+            <small>Higher values make the two options differ more. Lower values stick closer to the email.</small>
+          </div>
+          <div class="setting">
+            <label for="voiceSelect">Reading voice</label>
+            <select id="voiceSelect"><option value="af_heart">Heart · US female</option></select>
+          </div>
+          <div class="setting">
+            <label for="speed">Reading speed <output id="speedOut">1.0</output></label>
+            <input type="range" id="speed" min="0.7" max="1.4" step="0.1" value="1.0">
+            <small>Reading aloud uses Kokoro-82M and dictation uses Whisper. Both are free, open source and run on this computer.</small>
+          </div>
+        </div>
+
+        <div class="gen-row">
+          <button class="Btn" id="genBtn" type="button"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Response canvas -->
+    <section class="pane">
+      <div class="bar-top" id="barTop"><div></div></div>
+      <div class="pane-head">
+        <div>
+          <p class="kicker">Response canvas</p>
+          <h2 id="canvasTitle">Summary comparison</h2>
+        </div>
+        <div class="head-tools">
+          <div class="modes" role="tablist" aria-label="Mode">
+            <button class="Btn Btn-sm Btn-dark mode" role="tab" id="modeCompare" aria-selected="false" type="button">COMPARE</button>
+            <button class="Btn Btn-sm Btn-dark mode" role="tab" id="modeSingle" aria-selected="true" type="button">SINGLE</button>
+          </div>
+          <span class="lens-tag" id="lensTag" hidden></span>
+        </div>
+      </div>
+
+      <div class="canvas" id="canvas" aria-live="polite"></div>
+
+      <div class="profile">
+        <div class="profile-top"><span class="section-label">Preference profile</span><span class="profile-count" id="profCount">0 / 30</span></div>
+        <div class="meter"><div class="meter-fill" id="profFill"></div><div class="meter-mark" id="profMark"></div></div>
+        <div class="profile-foot">
+          <span class="profile-text" id="profText">Loading…</span>
+          <button class="Btn Btn-md" id="trainBtn" type="button" disabled>TRAIN NOW</button>
+        </div>
+        <div class="train-msg" id="trainMsg" hidden></div>
+        <div class="profile-meta" id="profMeta"></div>
+      </div>
+
+      <footer class="canvas-foot">
+        <span><span data-icon="shield-check"></span>PRIVATE WORKSPACE · REVIEW IMPORTANT DETAILS AGAINST SOURCE</span>
+        <span id="versionTag">V1-LOCAL</span>
+      </footer>
+    </section>
+  </div>
+</main>
+
+<script>
+// ------------------------------------------------------------------ icons (lucide)
+const ICONS = {
+  "layers": '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+  "split": '<path d="M16 3h5v5"/><path d="M8 3H3v5"/><path d="M12 22v-8.3a4 4 0 0 0-1.172-2.872L3 3"/><path d="m15 9 6-6"/>',
+  "file-text": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  "sparkles": '<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>',
+  "shield-check": '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  "check-circle": '<path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/>',
+  "heart": '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  "copy": '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  "volume": '<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"/><path d="M16 9a5 5 0 0 1 0 6"/><path d="M19.364 18.364a9 9 0 0 0 0-12.728"/>',
+  "square": '<rect width="14" height="14" x="5" y="5" rx="1"/>',
+  "target": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  "list-checks": '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  "calendar": '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  "gauge": '<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+  "reply": '<polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/>',
+  "alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+};
+const icon = name => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+document.querySelectorAll("[data-icon]").forEach(el => el.innerHTML = icon(el.dataset.icon));
+
+// ------------------------------------------------------------------ helpers
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+function renderMarkdown(text) {
+  let html = "", list = null;
+  const close = () => { if (list) { html += `</${list}>`; list = null; } };
+  const open = tag => { if (list !== tag) { close(); html += `<${tag}>`; list = tag; } };
+  for (const line of text.split("\n")) {
+    let m;
+    if ((m = line.match(/^(\s*)[-*•]\s+(.*)/))) { open("ul"); html += `<li${m[1].length >= 2 ? ' class="sub"' : ""}>${inline(m[2])}</li>`; }
+    else if ((m = line.match(/^(\s*)\d+[.)]\s+(.*)/))) { open("ol"); html += `<li${m[1].length >= 2 ? ' class="sub"' : ""}>${inline(m[2])}</li>`; }
+    else if ((m = line.match(/^#{1,6}\s+(.*)/))) { close(); html += `<h4>${inline(m[1])}</h4>`; }
+    else if (!line.trim()) { close(); }
+    else { close(); html += `<p>${inline(line.trim())}</p>`; }
+  }
+  close();
+  return html;
+}
+async function errorMessage(res) {
+  const data = await res.json().catch(() => ({}));
+  return data.detail || `Server error ${res.status}`;
+}
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+
+// ------------------------------------------------------------------ state
+const SAMPLE = `From: Sarah Jenkins <sarah.j@techcorp.com>
+To: Product Team <prod-team@techcorp.com>
+Subject: Urgent: Q3 Launch Timeline & Blockers
+
+Hey team, following up on our sync. We are currently 2 weeks behind on the API integration. Mark, can you confirm if the database migration is completed? We need that before we can unblock the frontend team.
+
+Also, Elena mentioned we might need to push the beta release to Sept 15. Let's decide by Friday.
+
+---
+From: Mark Davis <mark.d@techcorp.com>
+To: Sarah Jenkins <sarah.j@techcorp.com>
+
+Yes, migration is done. Frontend is good to go. API keys are updated in the dev environment.`;
+
+const state = {
+  lenses: ["Short summary", "Bullet points", "Action items", "One line (TL;DR)"],
+  lens: "Full analysis",
+  mode: "single",        // "single" (full analysis or one streamed summary) or "compare" (Alpha vs Beta, feeds training)
+  analysis: {sections: {}, streaming: false, text: "", stats: "", shown: new Set()},
+  view: "empty",         // empty | working | compare | single | error
+  busy: false,
+  controller: null,      // AbortController for a streaming single summary
+  pair: null,            // {id, texts, choice, locked, notice}
+  single: {text: "", streaming: false, stats: ""},
+  error: "",
+  version: 1,
+  stats: null,
+  lastTrainState: null,
+  pollTimer: null,
+  voteBanner: null,      // {kind, text}
+};
+const els = {
+  email: $("email"), counts: $("counts"), lenses: $("lenses"), gen: $("genBtn"), canvas: $("canvas"),
+  barTop: $("barTop"), lensTag: $("lensTag"), trainBtn: $("trainBtn"), trainMsg: $("trainMsg"),
+};
+$("shortcut").textContent = `${isMac ? "⌘" : "Ctrl"} + Enter to generate`;
+
+// ------------------------------------------------------------------ input console
+// The email box grows and shrinks with its text (between the CSS min-height and max-height of 70% of the window).
+function autoGrow() {
+  const box = els.email;
+  box.style.height = "auto";
+  box.style.height = `${box.scrollHeight + 2}px`;
+}
+function updateCounts() {
+  const text = els.email.value.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  els.counts.textContent = `${words.toLocaleString()} words · ${els.email.value.length.toLocaleString()} chars`;
+  $("clearEmailBtn").disabled = !els.email.value;  // nothing to clear
+  autoGrow();
+}
+els.email.addEventListener("input", updateCounts);
+window.addEventListener("resize", autoGrow);
+
+const ANALYSIS = "Full analysis";
+const visibleLenses = () => state.mode === "single" ? [ANALYSIS, ...state.lenses] : state.lenses;
+function renderLenses() {
+  if (!visibleLenses().includes(state.lens)) state.lens = state.mode === "single" ? ANALYSIS : "Short summary";
+  els.lenses.innerHTML = "";
+  for (const name of visibleLenses()) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "Btn Btn-md Btn-dark lens"; b.textContent = name;
+    b.setAttribute("aria-pressed", String(name === state.lens));
+    b.onclick = () => { state.lens = name; renderLenses(); renderGenButton(); if (state.view === "empty") render(); };
+    els.lenses.appendChild(b);
+  }
+}
+
+$("advToggle").onclick = () => {
+  const open = $("advanced").hidden;
+  $("advanced").hidden = !open;
+  $("advToggle").setAttribute("aria-expanded", String(open));
+};
+for (const id of ["maxTokens", "temperature"]) {
+  const input = $(id), out = $(id + "Out");
+  input.addEventListener("input", () => out.textContent = input.value);
+}
+$("sampleBtn").onclick = () => { els.email.value = SAMPLE; updateCounts(); els.email.focus(); };
+// CLEAR empties only the source email box (RESET in the header also clears the results)
+$("clearEmailBtn").onclick = () => {
+  if (player.key === "source") stopAudio();  // stop reading the old email aloud
+  els.email.value = "";
+  updateCounts();
+  els.email.focus();
+};
+
+// ---- .eml import (button, or drop a file on the text box)
+$("importBtn").onclick = () => $("fileInput").click();
+$("fileInput").onchange = e => { if (e.target.files[0]) importFile(e.target.files[0]); e.target.value = ""; };
+els.email.addEventListener("dragover", e => { e.preventDefault(); els.email.classList.add("drag"); });
+els.email.addEventListener("dragleave", () => els.email.classList.remove("drag"));
+els.email.addEventListener("drop", e => {
+  els.email.classList.remove("drag");
+  if (e.dataTransfer.files[0]) { e.preventDefault(); importFile(e.dataTransfer.files[0]); }
+});
+
+const isAudio = file => file.type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|oga|opus|webm|flac|aac)$/i.test(file.name);
+async function importFile(file) {
+  if (isAudio(file)) {
+    if (file.size > 200 * 1024 * 1024) return showError("That audio file is larger than 200 MB.");
+    return transcribeAudio(file, file.name);
+  }
+  if (file.size > 5 * 1024 * 1024) return showError("That file is larger than 5 MB. Import a single email.");
+  try {
+    els.email.value = parseEml(await file.text()).trim();
+    updateCounts();
+    els.email.focus();
+  } catch (err) {
+    showError(`Couldn't read ${file.name}: ${err.message}`);
+  }
+}
+
+const bytesFromBinary = s => Uint8Array.from(s, c => c.charCodeAt(0) & 255);
+function qpBytes(s) {
+  const out = [];
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === "=" && /^[0-9A-F]{2}$/i.test(s.substr(i + 1, 2))) { out.push(parseInt(s.substr(i + 1, 2), 16)); i += 2; }
+    else out.push(...new TextEncoder().encode(s[i]));
+  }
+  return new Uint8Array(out);
+}
+function decodeBytes(bytes, charset) {
+  try { return new TextDecoder(charset || "utf-8").decode(bytes); } catch { return new TextDecoder().decode(bytes); }
+}
+function decodeWords(s) {  // =?utf-8?B?...?= encoded header words
+  return s.replace(/=\?([^?]+)\?([bq])\?([^?]*)\?=/gi, (m, cs, enc, text) => {
+    try { return decodeBytes(enc.toLowerCase() === "b" ? bytesFromBinary(atob(text)) : qpBytes(text.replace(/_/g, " ")), cs); }
+    catch { return m; }
+  });
+}
+function parseHeaders(text) {
+  const headers = {};
+  for (const line of text.replace(/\n[ \t]+/g, " ").split("\n")) {
+    const i = line.indexOf(":");
+    if (i > 0) headers[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+  }
+  return headers;
+}
+function decodeBody(headers, body) {
+  const enc = (headers["content-transfer-encoding"] || "").toLowerCase();
+  const charset = ((headers["content-type"] || "").match(/charset="?([^";\s]+)"?/i) || [])[1];
+  if (enc === "base64") return decodeBytes(bytesFromBinary(atob(body.replace(/\s+/g, ""))), charset);
+  if (enc === "quoted-printable") return decodeBytes(qpBytes(body.replace(/=\n/g, "")), charset);
+  return body;
+}
+function htmlToText(html) {
+  const marked = html.replace(/<(br|\/p|\/div|\/li|\/tr|\/h\d)[^>]*>/gi, m => m + "\n");
+  return (new DOMParser().parseFromString(marked, "text/html").body.textContent || "").replace(/\n[ \t]+/g, "\n").replace(/\n{3,}/g, "\n\n");
+}
+function extractText(headers, body) {
+  const type = headers["content-type"] || "text/plain";
+  const boundary = (type.match(/boundary="?([^";]+)"?/i) || [])[1];
+  if (/multipart\//i.test(type) && boundary) {
+    let html = null;
+    for (const part of body.split("--" + boundary)) {
+      const split = part.indexOf("\n\n");
+      if (split < 0) continue;
+      const ph = parseHeaders(part.slice(0, split)), pb = part.slice(split + 2);
+      const pt = ph["content-type"] || "text/plain";
+      if (/attachment/i.test(ph["content-disposition"] || "")) continue;
+      if (/multipart\//i.test(pt)) { const t = extractText(ph, pb); if (t.trim()) return t; }
+      else if (/text\/plain/i.test(pt)) return decodeBody(ph, pb);
+      else if (/text\/html/i.test(pt) && html === null) html = decodeBody(ph, pb);
+    }
+    return html ? htmlToText(html) : "";
+  }
+  const text = decodeBody(headers, body);
+  return /text\/html/i.test(type) ? htmlToText(text) : text;
+}
+function parseEml(raw) {
+  raw = raw.replace(/\r\n/g, "\n");
+  const split = raw.indexOf("\n\n");
+  if (split < 0) return raw;
+  const headers = parseHeaders(raw.slice(0, split));
+  if (!headers.from && !headers.subject) return raw;  // plain text, not an email file
+  const head = ["from", "to", "cc", "date", "subject"].filter(h => headers[h])
+    .map(h => `${h[0].toUpperCase() + h.slice(1)}: ${decodeWords(headers[h])}`).join("\n");
+  return `${head}\n\n${extractText(headers, raw.slice(split + 2)).trim()}`;
+}
+
+// ------------------------------------------------------------------ modes + generate button
+function setMode(mode) {
+  if (state.busy) return;
+  state.mode = mode;
+  $("modeCompare").setAttribute("aria-selected", String(mode === "compare"));
+  $("modeSingle").setAttribute("aria-selected", String(mode === "single"));
+  $("canvasTitle").textContent = mode === "compare" ? "Summary comparison" : "Summary";
+  state.view = "empty";
+  state.voteBanner = null;
+  renderLenses();
+  render();
+}
+$("modeCompare").onclick = () => setMode("compare");
+$("modeSingle").onclick = () => setMode("single");
+
+function renderGenButton() {
+  const kb = `<span class="mono">${isMac ? "⌘↵" : "Ctrl ↵"}</span>`;
+  const training = state.stats?.training;
+  els.gen.classList.toggle("stop", !!state.controller);
+  if (state.controller) { els.gen.disabled = false; els.gen.innerHTML = "Stop generating"; return; }
+  els.gen.disabled = state.busy || training || state.switching;
+  if (training) els.gen.innerHTML = "Model is training…";
+  else if (state.busy) els.gen.innerHTML = state.mode === "compare" ? "Analyzing thread…" : "Summarizing…";
+  else els.gen.innerHTML = (state.mode === "compare" ? "Generate Summary Options "
+    : state.lens === ANALYSIS ? "Analyze Email " : "Generate Summary ") + kb;
+}
+els.gen.onclick = () => {
+  if (state.controller) return stopSingle();
+  if (state.mode === "compare") compare();
+  else if (state.lens === ANALYSIS) analyzeEmail();
+  else summarize();
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!els.gen.disabled) els.gen.click(); return; }
+  const typing = ["TEXTAREA", "INPUT"].includes(document.activeElement?.tagName);
+  if (typing || state.view !== "compare" || !state.pair || state.pair.choice !== null || state.pair.locked) return;
+  const k = e.key.toLowerCase();
+  if (k === "a" || k === "1") vote(0);
+  if (k === "b" || k === "2") vote(1);
+});
+
+
+// ------------------------------------------------------------------ loading animation (LottieFiles dotLottie, served locally)
+let dotLottie = null, loaderAnim = null;
+async function mountLoader() {
+  const canvas = $("loadingLottie");
+  if (!canvas) return;
+  try {
+    if (!dotLottie) {
+      dotLottie = await import("/static/vendor/dotlottie/dotlottie-web.js");
+      dotLottie.DotLottie.setWasmUrl("/static/vendor/dotlottie/dotlottie-player.wasm");
+    }
+    if (!canvas.isConnected) return;  // the results arrived before the player finished loading
+    unmountLoader();
+    loaderAnim = new dotLottie.DotLottie({canvas, src: "/static/assets/loading.lottie", loop: true, autoplay: true});
+    loaderAnim.addEventListener("load", () => canvas.closest(".loader-ring")?.classList.add("ready"));
+  } catch (err) {
+    console.warn("Loading animation unavailable, showing the spinner instead:", err);
+  }
+}
+function showLoader(message) {
+  if ($("loadingLottie")) return;  // already on screen; keep the animation running
+  els.canvas.innerHTML = `
+    <div class="loader center" role="status">
+      <div class="loader-ring">
+        <div class="loader-core"></div>
+        <canvas id="loadingLottie" width="336" height="336" aria-hidden="true"></canvas>
+        <div class="spinner loader-fallback"></div>
+      </div>
+      <h3 class="loader-title">Loading<span class="loader-dots"><i>.</i><i>.</i><i>.</i></span></h3>
+      <p>${esc(message)}</p>
+    </div>`;
+  mountLoader();
+}
+function unmountLoader() {
+  if (loaderAnim) { loaderAnim.destroy(); loaderAnim = null; }
+}
+
+// ------------------------------------------------------------------ canvas rendering
+const OPTION_NAMES = ["Alpha", "Beta"];
+
+function render() {
+  renderGenButton();
+  const waiting = state.view === "working" || (state.view === "single" && state.single.streaming && !state.single.text)
+    || (state.view === "analysis" && state.analysis.streaming && !Object.keys(state.analysis.sections).length);
+  if (!waiting) unmountLoader();
+  $("canvasTitle").textContent = waiting ? "Loading…"
+    : state.view === "analysis" ? "Email analysis" : state.mode === "compare" ? "Summary comparison" : "Summary";
+  const lensVisible = ["compare", "single", "analysis"].includes(state.view) || state.view === "working";
+  els.lensTag.hidden = !lensVisible;
+  els.lensTag.textContent = `Lens: ${state.shownLens || state.lens}`;
+  const streaming = state.single.streaming || state.analysis.streaming;
+  els.barTop.classList.toggle("loading", state.view === "working" || streaming);
+  els.barTop.firstElementChild.style.width = ["compare", "single", "analysis"].includes(state.view) && !streaming ? "100%" : "";
+
+  if (state.view === "empty") {
+    const compare = state.mode === "compare";
+    els.canvas.innerHTML = `
+      <div class="empty center">
+        <div class="empty-icon">${icon(compare ? "split" : "file-text")}</div>
+        <h3>Awaiting source material</h3>
+        <p>${compare
+          ? `Generate two concise interpretations, then choose the one that teaches ${esc(modelName())} how you work.`
+          : state.lens === ANALYSIS
+            ? "Get the summary, intent, action items, deadline, tone and a suggested reply for any email."
+            : "Generate one summary, streamed as it is written. Switch to Compare to train the model on your preferences."}</p>
+        ${compare ? '<div class="empty-foot"><span>Alpha</span><span>Beta</span></div>' : ""}
+      </div>`;
+  } else if (state.view === "working") {
+    showLoader("Writing two interpretations of this thread…");
+  } else if (state.view === "error") {
+    els.canvas.innerHTML = `<div class="banner err" style="margin:auto 0"><span>${icon("alert")}${esc(state.error)}</span></div>`;
+  } else if (state.view === "compare") {
+    renderCompare();
+  } else if (state.view === "single") {
+    renderSingle();
+  } else if (state.view === "analysis") {
+    renderAnalysis();
+  }
+  syncListenButtons();
+}
+
+function renderCompare() {
+  const p = state.pair;
+  const cards = p.texts.map((text, i) => {
+    const chosen = p.choice === i, rejected = p.choice !== null && p.choice !== i;
+    const cls = ["option", chosen && "chosen", rejected && "rejected", p.locked && "locked", p.fresh && "enter"].filter(Boolean).join(" ");
+    return `
+      <div class="${cls}" data-i="${i}">
+        <div>
+          <div class="opt-head">
+            <span class="opt-name">OPTION ${OPTION_NAMES[i].toUpperCase()}</span>
+            <span class="opt-tools">
+              <button class="Btn Btn-sm Btn-dark listen" type="button" data-listen="opt${i}" title="Read option ${OPTION_NAMES[i]} aloud"></button>
+              ${chosen ? `<span class="opt-check">${icon("check-circle")}</span>` : ""}
+            </span>
+          </div>
+          <div class="md">${renderMarkdown(text) || "<p><em>(empty response)</em></p>"}</div>
+        </div>
+        <button class="gradient-button select" type="button" data-i="${i}" ${p.choice !== null || p.locked ? "disabled" : ""}
+          aria-label="Prefer option ${OPTION_NAMES[i]}">
+          ${icon("heart")}<span class="gradient-text">${chosen ? "PREFERRED CHOICE" : `PREFER ${OPTION_NAMES[i].toUpperCase()}`}</span>
+        </button>
+      </div>`;
+  }).join("");
+
+  let banner = "";
+  if (state.voteBanner) {
+    const b = state.voteBanner;
+    banner = `<div class="banner ${b.kind === "ok" ? "" : b.kind}">
+      <span>${icon(b.kind === "ok" ? "sparkles" : "alert").replace('class="i"', `class="i${b.kind === "ok" ? " spark" : ""}"`)}${esc(b.text)}</span>
+      ${b.kind === "ok" ? '<button class="Btn Btn-sm" type="button" id="tryAnother">TRY ANOTHER</button>' : ""}
+    </div>`;
+  } else if (p.notice) {
+    banner = `<div class="banner warn"><span>${icon("alert")}${esc(p.notice)}</span></div>`;
+  }
+  const hint = p.choice === null && !p.locked
+    ? `<div class="hint">Tap ♥ on the option you prefer<span class="kbd-hint">, or press <kbd>A</kbd> / <kbd>B</kbd></span>.</div>` : "";
+
+  if (state.voteBanner && !state.voteBanner.shown) { banner = banner.replace('class="banner', 'class="banner enter'); state.voteBanner.shown = true; }
+  p.fresh = false;
+  els.canvas.innerHTML = `<div class="options">${cards}</div>${banner}${hint}`;
+  els.canvas.querySelectorAll(".option").forEach(card => card.onclick = e => { if (!e.target.closest(".listen")) vote(+card.dataset.i); });
+  $("tryAnother")?.addEventListener("click", tryAnother);
+}
+
+function renderSingle() {
+  const s = state.single;
+  if (s.streaming && !s.text) return showLoader("Reading the thread…");
+  unmountLoader();
+  $("canvasTitle").textContent = "Summary";
+  const body = s.text ? renderMarkdown(s.text) : "";
+  const enter = !s.entered;  // slide in only the first time the card appears
+  s.entered = true;
+  els.canvas.innerHTML = `
+    <div class="single${s.streaming ? " generating" : ""}${enter ? " enter" : ""}">
+      <div class="md${s.streaming ? " caret" : ""}">${body || "<p><em>(empty response)</em></p>"}</div>
+      <div class="single-foot">
+        <span>${s.streaming
+          ? '<span class="typing"><span class="typing-dots"><i></i><i></i><i></i></span>AI is writing</span>'
+          : esc(s.stats)}</span>
+        <span class="single-tools">
+          <button class="Btn Btn-sm Btn-dark listen" type="button" data-listen="single" ${s.streaming ? "disabled" : ""}></button>
+          <button class="Btn Btn-sm Btn-dark" id="copyBtn" type="button" ${s.streaming ? "disabled" : ""}>${icon("copy")} COPY</button>
+        </span>
+      </div>
+    </div>`;
+  $("copyBtn")?.addEventListener("click", async e => {
+    const btn = e.currentTarget;
+    try { await navigator.clipboard.writeText(s.text.trim()); btn.innerHTML = `${icon("copy")} COPIED`; }
+    catch { btn.textContent = "COPY FAILED"; }
+    setTimeout(() => btn.innerHTML = `${icon("copy")} COPY`, 1500);
+  });
+  syncListenButtons();
+}
+
+function showError(message) {
+  state.view = "error";
+  state.error = message;
+  render();
+}
+
+// ------------------------------------------------------------------ API calls
+const requestBody = () => ({
+  email: els.email.value.trim(), style: state.lens,
+  max_tokens: +$("maxTokens").value, temperature: +$("temperature").value,
+});
+
+async function compare() {
+  const body = requestBody();
+  if (!body.email) { els.email.focus(); return showError("Paste or load an email thread first."); }
+  state.busy = true; state.view = "working"; state.voteBanner = null; state.shownLens = body.style;
+  render();
+  try {
+    const res = await fetch("/api/compare", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    const data = await res.json();
+    state.pair = {
+      id: data.pair_id, texts: data.responses, choice: null, locked: data.duplicate || data.identical, fresh: true,
+      notice: data.identical ? "Both options came out the same, so there's nothing to choose. Try another lens or raise the temperature in Advanced."
+        : data.duplicate ? "You've already rated this thread with this lens. Change the email or the lens to record a new preference." : "",
+    };
+    state.view = "compare";
+  } catch (err) {
+    state.view = "error"; state.error = err.message || String(err);
+  } finally {
+    state.busy = false;
+    render();
+  }
+}
+
+async function vote(choice) {
+  const p = state.pair;
+  if (!p || p.choice !== null || p.locked) return;
+  p.choice = choice;
+  state.voteBanner = null;
+  render();
+  try {
+    const res = await fetch("/api/vote", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({pair_id: p.id, choice})});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    const s = await res.json();
+    state.voteBanner = {kind: "ok", text: s.auto_training
+      ? `Preference recorded. ${s.auto} reached, so ${modelName()} is now training on your choices.`
+      : `Preference recorded. ${modelName()} is adapting to your style.`};
+    renderProfile(s);
+  } catch (err) {
+    p.choice = null;
+    state.voteBanner = {kind: "err", text: err.message || String(err)};
+  }
+  render();
+}
+
+function tryAnother() {
+  els.email.value = "";
+  updateCounts();
+  state.pair = null; state.voteBanner = null; state.view = "empty";
+  render();
+  els.email.focus();
+}
+
+async function summarize() {
+  const body = requestBody();
+  if (!body.email) { els.email.focus(); return showError("Paste or load an email thread first."); }
+  state.controller = new AbortController();
+  state.single = {text: "", streaming: true, stats: ""};
+  state.view = "single"; state.shownLens = body.style;
+  render();
+  const started = performance.now();
+  let stopped = false;
+  try {
+    const res = await fetch("/api/summarize", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body), signal: state.controller.signal});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      state.single.text += decoder.decode(value, {stream: true});
+      renderSingle();
+    }
+  } catch (err) {
+    if (err.name === "AbortError") stopped = true;
+    else { state.controller = null; state.single.streaming = false; return showError(err.message || String(err)); }
+  }
+  state.controller = null;
+  state.single.streaming = false;
+  const words = state.single.text.trim() ? state.single.text.trim().split(/\s+/).length : 0;
+  state.single.stats = `${words} WORDS · ${((performance.now() - started) / 1000).toFixed(1)}S${stopped ? " · STOPPED" : ""}`;
+  if (!state.single.text.trim() && stopped) state.view = "empty";
+  render();
+}
+
+
+// ------------------------------------------------------------------ email assistant: full analysis
+const AN_SECTIONS = [
+  ["summary", "Summary", "file-text"], ["intent", "Intent", "target"], ["actions", "Action Items", "list-checks"],
+  ["deadline", "Deadline", "calendar"], ["sentiment", "Sentiment / Urgency", "gauge"], ["response", "Suggested Response", "reply"],
+];
+
+function analysisText() {
+  const a = state.analysis;
+  return a.text || AN_SECTIONS.filter(([k]) => a.sections[k]).map(([k, t]) => `${t}:\n${a.sections[k]}`).join("\n\n");
+}
+
+function sectionBody(key, text) {
+  if (key === "intent") {  // "Request for action + Meeting or scheduling: what the sender wants"
+    const i = text.indexOf(":");
+    const labels = (i > 0 ? text.slice(0, i) : text).split(" + ");
+    const chips = labels.map(l => `<span class="chip intent">${esc(l.trim())}</span>`).join("");
+    return `<div class="chip-row">${chips}</div>${i > 0 ? `<div style="margin-top:8px">${esc(text.slice(i + 1).trim())}</div>` : ""}`;
+  }
+  if (key === "deadline") {  // "<when> — <task>" per line
+    const SEP = " — ";
+    if (!text.includes(SEP)) return `<span class="muted-line">${esc(text)}</span>`;
+    return `<ul class="deadline-list">${text.split("\n").map(line => {
+      const i = line.indexOf(SEP);
+      return `<li><span class="when">${esc(line.slice(0, i))}</span><span>${esc(line.slice(i + SEP.length).trim())}</span></li>`;
+    }).join("")}</ul>`;
+  }
+  if (key === "sentiment") {
+    const tone = (text.match(/Sentiment:\s*(.+)/) || [])[1] || "";
+    const m = text.match(/Urgency:\s*(\w+)\s*(?:\((.*)\))?/) || [];
+    const level = m[1] || "", reasons = m[2] || "";
+    return `<div class="chip-row"><span class="chip tone">Tone: ${esc(tone)}</span>
+      <span class="chip ${esc(level.toLowerCase())}">Urgency: ${esc(level)}</span></div>
+      ${reasons ? `<div class="reasons">Why: ${esc(reasons)}</div>` : ""}`;
+  }
+  if (key === "response") return `<div class="reply">${esc(text)}</div>`;
+  if (key === "actions" && text === "None") return `<span class="muted-line">No action items.</span>`;
+  return `<div class="md">${renderMarkdown(text)}</div>`;
+}
+
+function renderAnalysis() {
+  const a = state.analysis;
+  if (a.streaming && !Object.keys(a.sections).length) return showLoader("Reading the email…");
+  unmountLoader();
+  $("canvasTitle").textContent = "Email analysis";
+  const nextKey = AN_SECTIONS.map(([k]) => k).find(k => !a.sections[k]);
+  const cards = AN_SECTIONS.map(([key, title, ic]) => {
+    const text = a.sections[key];
+    if (text === undefined) {
+      if (!a.streaming) return "";  // stopped early: leave out the sections that never arrived
+      const active = key === nextKey;
+      return `<section class="an-sec pending${active ? " active" : ""}">
+        <div class="an-head"><span class="an-icon">${icon(ic)}</span><h3>${title}</h3>
+          ${active ? '<span class="an-tools"><span class="typing"><span class="typing-dots"><i></i><i></i><i></i></span>AI is writing</span></span>' : ""}</div>
+        <div class="skel w80"></div><div class="skel w55"></div></section>`;
+    }
+    const enter = !a.shown.has(key);
+    a.shown.add(key);
+    const tools = key === "response" ? `<span class="an-tools">
+        <button class="Btn Btn-sm Btn-dark listen" type="button" data-listen="reply"></button>
+        <button class="Btn Btn-sm Btn-dark" type="button" data-copy="reply">${icon("copy")} COPY REPLY</button></span>` : "";
+    return `<section class="an-sec${enter ? " enter" : ""}">
+      <div class="an-head"><span class="an-icon">${icon(ic)}</span><h3>${title}</h3>${tools}</div>
+      <div class="an-body">${sectionBody(key, text)}</div></section>`;
+  }).join("");
+  els.canvas.innerHTML = `
+    <div class="analysis${a.streaming ? " generating" : ""}">${cards}
+      <div class="an-foot">
+        <span>${a.streaming ? `${Object.keys(a.sections).length} / ${AN_SECTIONS.length} sections` : esc(a.stats)}</span>
+        <span class="single-tools">
+          <button class="Btn Btn-sm Btn-dark listen" type="button" data-listen="analysis" ${a.streaming ? "disabled" : ""}></button>
+          <button class="Btn Btn-sm Btn-dark" type="button" data-copy="all" ${a.streaming ? "disabled" : ""}>${icon("copy")} COPY ALL</button>
+        </span>
+      </div>
+    </div>`;
+  els.canvas.querySelectorAll("[data-copy]").forEach(btn => btn.onclick = async () => {
+    const what = btn.dataset.copy, label = what === "reply" ? "COPY REPLY" : "COPY ALL";
+    try { await navigator.clipboard.writeText(what === "reply" ? a.sections.response : analysisText()); btn.innerHTML = `${icon("copy")} COPIED`; }
+    catch { btn.textContent = "COPY FAILED"; }
+    setTimeout(() => btn.innerHTML = `${icon("copy")} ${label}`, 1500);
+  });
+  syncListenButtons();
+}
+
+async function analyzeEmail() {
+  const email = els.email.value.trim();
+  if (!email) { els.email.focus(); return showError("Paste or load an email first."); }
+  state.controller = new AbortController();
+  state.analysis = {sections: {}, streaming: true, text: "", stats: "", shown: new Set()};
+  state.view = "analysis"; state.shownLens = ANALYSIS;
+  render();
+  const started = performance.now();
+  let stopped = false;
+  try {
+    const res = await fetch("/api/analyze", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({email}), signal: state.controller.signal});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buffer = "";
+    for (;;) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, {stream: true});
+      let nl;
+      while ((nl = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line) continue;
+        const msg = JSON.parse(line);
+        if (msg.done) state.analysis.text = msg.text;
+        else state.analysis.sections[msg.section] = msg.text;
+        renderAnalysis();
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") stopped = true;
+    else { state.controller = null; state.analysis.streaming = false; return showError(err.message || String(err)); }
+  }
+  state.controller = null;
+  state.analysis.streaming = false;
+  const n = Object.keys(state.analysis.sections).length;
+  state.analysis.stats = `${n} / ${AN_SECTIONS.length} SECTIONS · ${((performance.now() - started) / 1000).toFixed(1)}S${stopped ? " · STOPPED" : ""}`;
+  if (!n && stopped) state.view = "empty";
+  render();
+}
+
+function stopSingle() {
+  fetch("/api/stop", {method: "POST"}).catch(() => {});
+  state.controller?.abort();
+}
+
+$("resetBtn").onclick = () => {
+  if (state.controller) stopSingle();
+  els.email.value = "";
+  updateCounts();
+  state.pair = null; state.voteBanner = null; state.view = "empty";
+  render();
+};
+
+// ------------------------------------------------------------------ preference profile + training
+const modelName = () => `Custom-v${state.version}`;
+
+function setStatus(kind, text) {
+  $("statusDot").className = "sq" + (kind ? " " + kind : "");
+  $("statusText").textContent = text ? `· ${text}` : "";
+}
+
+// Radio buttons for every saved version (newest first). Only rebuilt when the list or selection changes,
+// so polling during training doesn't steal keyboard focus.
+function renderVersions(s) {
+  const disabled = s.training || state.switching;
+  const key = JSON.stringify([s.versions, s.active_version, disabled]);
+  if (key === state.versionsKey) return;
+  state.versionsKey = key;
+  const box = $("versions");
+  if (!s.versions?.length) { box.innerHTML = `<b>${esc(modelName())}</b>`; return; }
+  box.innerHTML = s.versions.map(v => `
+    <label class="ver" title="${v.latest ? "Newest version" : "Earlier version"}">
+      <input type="radio" name="modelVersion" value="${v.version}" ${v.version === s.active_version ? "checked" : ""} ${disabled ? "disabled" : ""}>
+      <span class="ver-dot"></span><span class="ver-name">${esc(v.label)}</span>${v.latest ? '<span class="ver-tag">latest</span>' : ""}
+    </label>`).join("");
+  box.querySelectorAll("input").forEach(input => input.onchange = () => selectVersion(+input.value));
+}
+
+async function selectVersion(version) {
+  if (state.busy || state.controller) {  // don't swap models mid-generation
+    state.versionsKey = null;
+    renderVersions(state.stats);
+    return showError("Wait for the current summary to finish, then switch versions.");
+  }
+  state.switching = true;
+  state.versionsKey = null;
+  renderVersions(state.stats);
+  setStatus("busy", `Loading Custom-v${version}`);
+  renderGenButton();
+  try {
+    const res = await fetch("/api/model", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({version})});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    state.switching = false;
+    renderProfile(await res.json());
+    if (state.view === "compare" || state.view === "single") { state.view = "empty"; state.pair = null; render(); }
+  } catch (err) {
+    state.switching = false;
+    state.versionsKey = null;
+    refreshProfile();
+    showError(err.message || String(err));
+  }
+}
+
+function renderProfile(s) {
+  state.stats = s;
+  state.version = s.active_version ?? s.rounds + 1;
+  renderVersions(s);
+  $("versionTag").textContent = `V${state.version}-LOCAL`;
+
+  const n = s.new;
+  $("profCount").textContent = `${n} / ${s.min}`;
+  $("profFill").style.width = Math.min(n / s.auto, 1) * 100 + "%";
+  $("profFill").classList.toggle("ready", n >= s.min);
+  $("profMark").style.left = `calc(${(s.min / s.auto) * 100}% - 1px)`;
+  $("profText").textContent = s.training ? "Training in progress…"
+    : n < s.min ? `${s.min - n} more preferences to unlock training.`
+    : n < s.auto ? `Ready to train. Starts automatically at ${s.auto}.` : "Ready to train.";
+
+  els.trainBtn.disabled = s.training || n < s.min;
+  els.trainBtn.innerHTML = s.training ? '<span class="spinner sm"></span> TRAINING' : "TRAIN NOW";
+
+  const st = s.status || {};
+  els.trainMsg.hidden = !["training", "done", "error"].includes(st.state);
+  els.trainMsg.className = "train-msg " + (st.state || "");
+  els.trainMsg.innerHTML = (st.state === "training" ? '<span class="spinner sm"></span>' : "") + esc(st.message || "");
+
+  const meta = [`${s.total} saved`, `${s.rounds} training round${s.rounds === 1 ? "" : "s"}`];
+  if (s.finetuned_win_rate !== null) meta.push(`trained model preferred in ${Math.round(s.finetuned_win_rate * 100)}%`);
+  $("profMeta").textContent = meta.join(" · ");
+
+  if (!state.switching) setStatus(s.training ? "busy" : "", s.training ? "Training" : "Ready");
+  if (s.training && !state.pollTimer) state.pollTimer = setInterval(refreshProfile, 2000);
+  if (!s.training && state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+  state.lastTrainState = st.state;
+  renderGenButton();
+  if (state.view === "empty") render();  // refresh the model name in the empty state
+}
+
+async function refreshProfile() {
+  try { renderProfile(await (await fetch("/api/feedback")).json()); }
+  catch { setStatus("err", "Server offline"); }
+}
+
+els.trainBtn.onclick = async () => {
+  els.trainBtn.disabled = true;
+  try {
+    const res = await fetch("/api/train", {method: "POST"});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    renderProfile(await res.json());
+  } catch (err) {
+    showError(err.message || String(err));
+    refreshProfile();
+  }
+};
+
+// ------------------------------------------------------------------ voice: dictation (Whisper) + reading aloud (Kokoro)
+function setVoiceStatus(html) {
+  const el = $("voiceStatus");
+  el.hidden = !html;
+  el.innerHTML = html || "";
+  $("shortcut").hidden = !!html;
+}
+
+// Decode any audio the browser understands and resample it to 16 kHz mono float32 for Whisper.
+async function toPcm16k(arrayBuffer) {
+  const ctx = new AudioContext();
+  let decoded;
+  try { decoded = await ctx.decodeAudioData(arrayBuffer); } finally { ctx.close(); }
+  const offline = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * 16000)), 16000);
+  const source = offline.createBufferSource();
+  source.buffer = decoded;
+  source.connect(offline.destination);
+  source.start();
+  return (await offline.startRendering()).getChannelData(0);
+}
+
+const rec = {media: null, stream: null, chunks: [], started: 0, timer: null};
+function updateDictateBtn() {
+  const btn = $("dictateBtn");
+  if (rec.media) {
+    const s = Math.floor((Date.now() - rec.started) / 1000);
+    btn.className = "Btn Btn-sm Btn-dark rec";
+    btn.textContent = `STOP ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  } else {
+    btn.className = "Btn Btn-sm Btn-dark";
+    btn.textContent = "DICTATE";
+  }
+}
+$("dictateBtn").onclick = async () => {
+  if (rec.media) return rec.media.stop();
+  try {
+    rec.stream = await navigator.mediaDevices.getUserMedia({audio: true});
+  } catch {
+    return showError("Microphone access was blocked. Allow the microphone for this page in your browser's site settings, then try again.");
+  }
+  rec.chunks = [];
+  rec.media = new MediaRecorder(rec.stream);
+  rec.media.ondataavailable = e => { if (e.data.size) rec.chunks.push(e.data); };
+  rec.media.onstop = () => {
+    const blob = new Blob(rec.chunks, {type: rec.media.mimeType});
+    rec.stream.getTracks().forEach(t => t.stop());
+    clearInterval(rec.timer);
+    rec.media = null;
+    updateDictateBtn();
+    transcribeAudio(blob, "your recording");
+  };
+  rec.media.start(1000);
+  rec.started = Date.now();
+  rec.timer = setInterval(updateDictateBtn, 500);
+  updateDictateBtn();
+  setVoiceStatus("Listening… press STOP when you're done");
+};
+
+async function transcribeAudio(blob, label) {
+  setVoiceStatus(`<span class="spinner sm"></span> Transcribing ${esc(label)}…`);
+  $("dictateBtn").disabled = true;
+  try {
+    let pcm;
+    try { pcm = await toPcm16k(await blob.arrayBuffer()); }
+    catch { throw new Error(`Couldn't decode ${label}. Try MP3, WAV, M4A, OGG or WebM audio.`); }
+    const res = await fetch("/api/transcribe", {method: "POST", headers: {"Content-Type": "application/octet-stream"}, body: pcm});
+    if (!res.ok) throw new Error(await errorMessage(res));
+    const {text, seconds} = await res.json();
+    if (!text) throw new Error("No speech was detected in the audio.");
+    const current = els.email.value.trimEnd();
+    els.email.value = current ? `${current}\n\n${text}` : text;
+    updateCounts();
+    setVoiceStatus(`Added ${seconds}s of speech`);
+    setTimeout(() => { if ($("voiceStatus").textContent.startsWith("Added")) setVoiceStatus(""); }, 4000);
+  } catch (err) {
+    setVoiceStatus("");
+    showError(err.message || String(err));
+  } finally {
+    $("dictateBtn").disabled = false;
+  }
+}
+
+const player = {audio: new Audio(), key: null, phase: "idle", cache: new Map()};
+function listenText(key) {
+  if (key === "source") return els.email.value.trim();
+  if (key === "single") return state.single.text.trim();
+  if (key === "analysis") return analysisText().trim();
+  if (key === "reply") return (state.analysis.sections.response || "").trim();
+  if (key.startsWith("opt")) return state.pair?.texts[+key.slice(3)]?.trim() || "";
+  return "";
+}
+function syncListenButtons() {
+  document.querySelectorAll("[data-listen]").forEach(btn => {
+    const phase = player.key === btn.dataset.listen ? player.phase : "idle";
+    btn.classList.toggle("playing", phase === "playing");
+    btn.innerHTML = phase === "loading" ? '<span class="spinner sm"></span> PREPARING'
+      : phase === "playing" ? `${icon("square")} STOP` : `${icon("volume")} LISTEN`;
+    btn.onclick = e => { e.stopPropagation(); listen(btn.dataset.listen); };
+  });
+}
+function stopAudio() {
+  player.audio.pause();
+  player.key = null;
+  player.phase = "idle";
+  syncListenButtons();
+}
+player.audio.onended = stopAudio;
+
+async function listen(key) {
+  if (player.key === key) return stopAudio();  // a second tap stops playback
+  const text = listenText(key);
+  if (!text) return;
+  stopAudio();
+  player.key = key;
+  player.phase = "loading";
+  syncListenButtons();
+  const voice = $("voiceSelect").value, speed = +$("speed").value;
+  const cacheKey = `${voice}|${speed}|${text}`;
+  try {
+    let url = player.cache.get(cacheKey);
+    if (!url) {
+      const res = await fetch("/api/speak", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text, voice, speed})});
+      if (!res.ok) throw new Error(await errorMessage(res));
+      url = URL.createObjectURL(await res.blob());
+      player.cache.set(cacheKey, url);
+    }
+    if (player.key !== key) return;  // the user tapped something else while it was preparing
+    player.audio.src = url;
+    await player.audio.play();
+    player.phase = "playing";
+    syncListenButtons();
+  } catch (err) {
+    if (player.key === key) stopAudio();
+    showError(err.message || String(err));
+  }
+}
+$("speed").addEventListener("input", () => $("speedOut").textContent = (+$("speed").value).toFixed(1));
+
+// ------------------------------------------------------------------ startup
+const favicon = document.createElement("link");
+favicon.rel = "icon";
+favicon.href = "data:image/svg+xml," + encodeURIComponent(document.querySelector(".logo-mark").outerHTML);
+document.head.appendChild(favicon);
+
+renderLenses();
+updateCounts();
+render();
+fetch("/api/voices").then(r => r.json()).then(v => {
+  $("voiceSelect").innerHTML = v.voices.map(x => `<option value="${esc(x.id)}"${x.id === v.default ? " selected" : ""}>${esc(x.label)}</option>`).join("");
+}).catch(() => {});
+fetch("/api/info").then(r => r.json()).then(info => {
+  state.lenses = info.styles;
+  renderLenses();
+  renderGenButton();
+  refreshProfile();
+}).catch(() => setStatus("err", "Server offline"));
+</script>
+</body>
+</html>

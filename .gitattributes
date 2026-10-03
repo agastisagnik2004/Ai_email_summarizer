@@ -1,0 +1,6 @@
+# keep Windows line endings for the launcher, binary files untouched
+*.bat text eol=crlf
+*.png binary
+*.wasm binary
+*.lottie binary
+*.parquet binary

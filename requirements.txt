@@ -1,0 +1,18 @@
+# Embrify - AI Email Summarizer. Versions tested together with Python 3.12 on Windows.
+# PyTorch is installed separately by "Start Embrify.bat" (GPU build if an NVIDIA card is found, otherwise CPU).
+transformers==5.17.0
+tokenizers==0.23.2
+safetensors==0.8.0
+huggingface_hub==1.33.0
+accelerate==1.15.0
+peft==0.21.0
+fastapi==0.141.1
+starlette==1.7.0
+uvicorn==0.54.0
+pydantic==2.13.5
+numpy==2.5.3
+soundfile==0.14.0
+kokoro==0.9.4
+misaki==0.9.4
+pandas==3.0.6
+pyarrow==25.0.1

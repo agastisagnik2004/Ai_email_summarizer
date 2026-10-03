@@ -1,0 +1,352 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  :root {
+    --paper: #F3EDE2; --ink: #1D1A26; --ink-2: #4A4658; --ink-3: #8A8496; --rule: #CFC6B6;
+    --violet: #6236C9; --violet-soft: #E6DDF7;
+    --slate: #34495E; --slate-soft: #DCE3EA;
+    --pink: #B82D6E; --pink-soft: #F6DCE7;
+    --teal: #0B7285; --teal-soft: #D4ECEF;
+    --ochre: #A86A12; --ochre-soft: #F4E4C6;
+    --serif: Georgia, "Cambria", serif;
+    --sans: "Segoe UI", system-ui, sans-serif;
+    --mono: "Cascadia Mono", Consolas, monospace;
+    --hand: "Segoe Print", "Ink Free", "Comic Sans MS", cursive;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 2400px; height: 1530px; }
+  body {
+    position: relative; overflow: hidden; color: var(--ink); font: 17px/1.45 var(--sans);
+    background:
+      linear-gradient(rgba(140,120,90,.07) 1px, transparent 1px) 0 0 / 40px 40px,
+      linear-gradient(90deg, rgba(140,120,90,.07) 1px, transparent 1px) 0 0 / 40px 40px,
+      var(--paper);
+  }
+  svg.grain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .22; mix-blend-mode: multiply; }
+  .frame { position: absolute; inset: 22px; border: 2px solid var(--ink); }
+  .frame::after { content: ""; position: absolute; inset: 6px; border: 1px solid var(--ink-3); }
+
+  /* header */
+  .kicker { position: absolute; left: 70px; top: 62px; font: 600 15px var(--mono); letter-spacing: .28em; color: var(--violet); }
+  h1 { position: absolute; left: 66px; top: 86px; font: 400 60px/1.05 var(--serif); letter-spacing: -.01em; }
+  h1 em { font-style: italic; color: var(--violet); }
+  .lede { position: absolute; left: 70px; top: 166px; width: 1100px; font: 19px/1.5 var(--serif); color: var(--ink-2); }
+
+  .legend { position: absolute; right: 70px; top: 70px; width: 600px; border: 1.5px solid var(--ink); background: rgba(255,255,255,.35); padding: 14px 18px; }
+  .legend h4 { font: 600 13px var(--mono); letter-spacing: .2em; color: var(--ink-3); margin-bottom: 8px; }
+  .legend ul { list-style: none; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-size: 15.5px; }
+  .legend li { display: flex; align-items: center; gap: 9px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; border: 1.5px solid rgba(0,0,0,.25); }
+
+  /* section labels */
+  .sec { position: absolute; font: 700 14px var(--mono); letter-spacing: .22em; color: var(--ink-2); }
+  .sec b { display: inline-block; font: 400 30px/1 var(--serif); color: var(--ink); letter-spacing: 0; margin-right: 10px; vertical-align: -6px; }
+
+  .card { position: absolute; border: 2px solid var(--ink); background: #FBF8F2; box-shadow: 5px 5px 0 rgba(29,26,38,.13); }
+  .card h3 { font: 700 21px var(--sans); }
+  .card .file { font: 14.5px var(--mono); color: var(--ink-3); }
+  .pad { padding: 16px 20px; }
+  .mono { font-family: var(--mono); }
+  .small { font-size: 14.5px; color: var(--ink-2); }
+
+  /* browser */
+  .bar { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-bottom: 2px solid var(--ink); background: #EFE8DB; }
+  .bar i { width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--ink); display: inline-block; }
+  .bar .url { margin-left: 10px; flex: 1; border: 1.5px solid var(--ink); border-radius: 20px; padding: 1px 12px; font: 14px var(--mono); background: #fff; }
+  .feat { list-style: none; padding: 0; display: grid; gap: 9px; margin-top: 12px; }
+  .feat li { display: grid; grid-template-columns: 26px 1fr; gap: 6px; font-size: 16px; }
+  .feat li span:first-child { font: 700 14px var(--mono); color: var(--violet); padding-top: 2px; }
+  .feat li small { display: block; color: var(--ink-3); font-size: 14px; }
+
+  /* endpoints */
+  .ep { display: grid; grid-template-columns: 122px 1fr; gap: 3px 10px; margin-top: 12px; font-size: 15px; }
+  .ep dt { font: 700 12.5px var(--mono); letter-spacing: .12em; color: var(--ink-3); padding-top: 3px; }
+  .ep dd { font: 14.5px var(--mono); margin: 0; }
+  .ep dd small { font-family: var(--sans); color: var(--ink-3); font-size: 13.5px; }
+  .engine { margin-top: 14px; border-top: 1.5px dashed var(--ink-3); padding-top: 12px; display: grid; gap: 7px; font-size: 15px; }
+  .engine div { padding-left: 22px; position: relative; }
+  .engine div::before { content: "▸"; position: absolute; left: 4px; color: var(--violet); }
+
+  /* assistant rows */
+  .rows { margin-top: 12px; display: grid; gap: 8px; }
+  .row { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: start; border: 1.5px solid var(--ink); background: #fff; padding: 9px 12px; }
+  .row .n { font: 400 26px/1 var(--serif); color: var(--ink-3); }
+  .row b { font-size: 17px; }
+  .row .who { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+  .chip { font: 600 12.5px var(--mono); padding: 2px 8px; border-radius: 3px; border: 1.3px solid; white-space: nowrap; }
+  .c-violet { color: var(--violet); border-color: var(--violet); background: var(--violet-soft); }
+  .c-slate { color: var(--slate); border-color: var(--slate); background: var(--slate-soft); }
+  .c-pink { color: var(--pink); border-color: var(--pink); background: var(--pink-soft); }
+  .c-teal { color: var(--teal); border-color: var(--teal); background: var(--teal-soft); }
+  .c-ochre { color: var(--ochre); border-color: var(--ochre); background: var(--ochre-soft); }
+  .row .note { display: block; color: var(--ink-3); font-size: 13.5px; margin-top: 3px; }
+
+  /* models shelf */
+  .shelf { display: grid; gap: 9px; margin-top: 12px; }
+  .model { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center; border: 1.5px solid var(--ink); background: #fff; padding: 8px 12px 8px 0; }
+  .model .stripe { align-self: stretch; }
+  .model b { font: 600 15px var(--mono); display: block; }
+  .model small { color: var(--ink-3); font-size: 13.5px; }
+  .model .gb { font: 600 14px var(--mono); color: var(--ink-2); }
+
+  .gpu { margin-top: 16px; border: 2px solid var(--ink); background: #EFE8DB; padding: 12px 14px; }
+  .gpu h5 { font: 700 15px var(--mono); letter-spacing: .08em; display: flex; justify-content: space-between; }
+  .gbar { display: flex; height: 26px; border: 1.5px solid var(--ink); margin-top: 10px; background: repeating-linear-gradient(45deg, #fff 0 6px, #F1EBDF 6px 12px); }
+  .gbar span { height: 100%; border-right: 1.5px solid var(--ink); font: 600 11.5px/23px var(--mono); text-align: center; color: #fff; overflow: hidden; white-space: nowrap; }
+
+  /* learning loop */
+  .step { position: absolute; border: 2px solid var(--ink); background: #fff; padding: 10px 14px; width: 232px; box-shadow: 4px 4px 0 rgba(29,26,38,.12); }
+  .step .k { font: 700 12px var(--mono); letter-spacing: .14em; color: var(--ink-3); }
+  .step b { display: block; font-size: 16.5px; margin: 2px 0; }
+  .step small { color: var(--ink-2); font-size: 13.5px; display: block; line-height: 1.35; }
+  .step.data { background: var(--ochre-soft); border-style: dashed; }
+  .step.out-v { background: var(--violet-soft); }
+  .step.out-p { background: var(--pink-soft); }
+  .step.you { background: #FFF6D9; }
+
+  /* launcher */
+  .steps { counter-reset: s; list-style: none; padding: 0; margin-top: 10px; display: grid; gap: 7px; font-size: 15px; }
+  .steps li { counter-increment: s; padding-left: 32px; position: relative; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 22px; height: 22px; border: 1.5px solid var(--ink); border-radius: 50%;
+    font: 700 12px/20px var(--mono); text-align: center; }
+
+  /* hand notes */
+  .hand { position: absolute; font: 21px/1.25 var(--hand); color: #8C2B5A; transform: rotate(-2.5deg); }
+  .hand.blue { color: #1F5E8C; transform: rotate(1.8deg); }
+
+  /* title block */
+  .tblock { position: absolute; right: 22px; bottom: 22px; width: 560px; border: 2px solid var(--ink); border-right: 0; border-bottom: 0;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; background: #FBF8F2; }
+  .tblock div { border-right: 1.5px solid var(--ink); border-bottom: 1.5px solid var(--ink); padding: 6px 10px; }
+  .tblock div:nth-child(3n) { border-right: 0; }
+  .tblock .wide { grid-column: 1 / -1; border-right: 0; font: 400 22px var(--serif); }
+  .tblock label { display: block; font: 700 10.5px var(--mono); letter-spacing: .18em; color: var(--ink-3); }
+  .tblock span { font: 600 14px var(--mono); }
+
+  svg.wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .wlabel { font: 600 13.5px var(--mono); fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 6px; }
+</style></head>
+<body>
+<svg class="grain"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .28  0 0 0 .55 0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+<div class="frame"></div>
+
+<div class="kicker">EMBRIFY · AI EMAIL SUMMARIZER · SYSTEM ARCHITECTURE</div>
+<h1>How the whole thing <em>fits together</em></h1>
+<p class="lede">One laptop does everything: a plain web page, a small Python server and six local models sharing a 6&nbsp;GB GPU.
+No cloud, no API keys — every email, vote and recording stays on this PC.</p>
+
+<div class="legend">
+  <h4>WHO DOES THE WORK</h4>
+  <ul>
+    <li><span class="sw" style="background:var(--violet)"></span>Your fine-tuned model (Custom-vN)</li>
+    <li><span class="sw" style="background:var(--slate)"></span>Original Qwen2.5-0.5B-Instruct</li>
+    <li><span class="sw" style="background:var(--pink)"></span>Reply model (SFT + DPO)</li>
+    <li><span class="sw" style="background:var(--teal)"></span>Voice models (Whisper, Kokoro)</li>
+    <li><span class="sw" style="background:var(--ochre)"></span>Plain rules, no AI</li>
+    <li><span class="sw" style="background:#FFF6D9"></span>You</li>
+  </ul>
+</div>
+
+<!-- ============ 01 the page ============ -->
+<div class="sec" style="left:70px; top:262px"><b>01</b>THE PAGE YOU USE</div>
+<div class="card" id="browser" style="left:70px; top:306px; width:500px;">
+  <div class="bar"><i></i><i></i><i></i><span class="url">127.0.0.1:7860</span></div>
+  <div class="pad">
+    <h3>Embrify web app</h3>
+    <div class="file">frontend/index.html · plain HTML/CSS/JS, no build step</div>
+    <ul class="feat">
+      <li><span>A</span><span><b>Single mode</b> — Full analysis or one of 4 summary styles<small>sections stream in one by one</small></span></li>
+      <li><span>B</span><span><b>Compare mode</b> — Option Alpha vs Beta<small>tap ♥ on the better one; that vote is training data</small></span></li>
+      <li><span>C</span><span><b>Dictate · Import</b> — .eml, .txt or an audio file</span></li>
+      <li><span>D</span><span><b>Listen</b> — reads the email or reply aloud</span></li>
+      <li><span>E</span><span><b>Model versions</b> — radio buttons Custom-v1, v2 …</span></li>
+      <li><span>F</span><span><b>Preference profile</b> — 30 votes unlock training</span></li>
+    </ul>
+    <div class="small" style="margin-top:12px">Lottie loader, icons and fonts are bundled locally — the page works offline.</div>
+  </div>
+</div>
+
+<div class="card" id="launcher" style="left:70px; top:780px; width:500px;">
+  <div class="pad">
+    <h3>Start Embrify.bat</h3>
+    <div class="file">double-click on any Windows PC</div>
+    <ol class="steps">
+      <li>Find Python 3.10–3.12, or install 3.12</li>
+      <li>Private env in <span class="mono">%LOCALAPPDATA%\Embrify</span></li>
+      <li>PyTorch (CUDA or CPU) + requirements.txt</li>
+      <li><span class="mono">setup_models.py</span> fetches missing models</li>
+      <li>Start the server, open the browser</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ============ 02 the server ============ -->
+<div class="sec" style="left:660px; top:262px"><b>02</b>THE SERVER</div>
+<div class="card" id="server" style="left:660px; top:306px; width:540px;">
+  <div class="pad">
+    <h3>app.py</h3>
+    <div class="file">FastAPI + uvicorn · listens only on 127.0.0.1</div>
+    <dl class="ep">
+      <dt>SUMMARIES</dt><dd>POST /api/summarize <small>streamed text</small><br>POST /api/stop</dd>
+      <dt>ASSISTANT</dt><dd>POST /api/analyze <small>one JSON line per section</small></dd>
+      <dt>PREFERENCES</dt><dd>/api/compare · /api/vote<br>/api/feedback · /api/train</dd>
+      <dt>VERSIONS</dt><dd>POST /api/model <small>switch Custom-vN</small></dd>
+      <dt>VOICE</dt><dd>/api/transcribe · /api/speak<br>/api/voices</dd>
+      <dt>PAGE</dt><dd>GET / · /static/*</dd>
+    </dl>
+    <div class="engine">
+      <div>One GPU lock — one job at a time</div>
+      <div>Work runs in a worker thread; closing the tab stops it and frees the GPU</div>
+      <div>Loop guard ends a reply the moment a model starts repeating itself</div>
+      <div>Models load on first use and are freed before training</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 03 the assistant ============ -->
+<div class="sec" style="left:1290px; top:262px"><b>03</b>THE ASSISTANT</div>
+<div class="card" id="assistant" style="left:1290px; top:306px; width:560px;">
+  <div class="pad">
+    <h3>assistant.py — six small jobs</h3>
+    <div class="file">each section gets its own prompt, then a rule check</div>
+    <div class="rows">
+      <div class="row"><span class="n">1</span><div><b>Summary</b><div class="who"><span class="chip c-violet">Custom-vN</span></div></div></div>
+      <div class="row"><span class="n">2</span><div><b>Intent</b><div class="who"><span class="chip c-slate">Original</span><span class="chip c-ochre">subject line</span></div></div></div>
+      <div class="row"><span class="n">3</span><div><b>Action items</b><div class="who"><span class="chip c-violet">Custom-vN</span><span class="chip c-ochre">request sentences</span><span class="chip c-ochre">numbered deliverables</span></div></div></div>
+      <div class="row"><span class="n">4</span><div><b>Deadline</b><div class="who"><span class="chip c-ochre">“by / due / scheduled for” + a date</span></div></div></div>
+      <div class="row"><span class="n">5</span><div><b>Sentiment · Urgency</b><div class="who"><span class="chip c-slate">Original</span><span class="chip c-ochre">urgent words + how soon</span></div></div></div>
+      <div class="row"><span class="n">6</span><div><b>Suggested response</b><div class="who"><span class="chip c-pink">Reply model</span><span class="chip c-violet">Custom-vN</span><span class="chip c-slate">Original</span><span class="chip c-ochre">template</span></div>
+        <span class="note">tried in that order — a draft is used only if it passes the reply check</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="voice" style="left:1290px; top:922px; width:560px;">
+  <div class="pad">
+    <h3>voice.py</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:8px; font-size:15px;">
+      <div><span class="chip c-teal">DICTATE</span><div style="margin-top:6px">browser resamples to 16 kHz → <b>Whisper</b> → text into the email box</div></div>
+      <div><span class="chip c-teal">LISTEN</span><div style="margin-top:6px">text → <b>Kokoro</b> (5 voices) → WAV played in the page</div></div>
+    </div>
+    <div class="small" style="margin-top:10px"><span class="mono">spacy_lite.py</span> stands in for spaCy, which Windows Smart App Control blocks.</div>
+  </div>
+</div>
+
+<!-- ============ 04 models ============ -->
+<div class="sec" style="left:1940px; top:262px"><b>04</b>MODELS ON DISK</div>
+<div class="card" id="models" style="left:1940px; top:306px; width:390px;">
+  <div class="pad">
+    <h3>models/</h3>
+    <div class="file">all local · loaded onto the GPU</div>
+    <div class="shelf">
+      <div class="model" id="m-orig"><span class="stripe" style="background:var(--slate)"></span><span><b>Qwen2.5-0.5B-Instruct</b><small>the original</small></span><span class="gb">1.0</span></div>
+      <div class="model" id="m-v2"><span class="stripe" style="background:var(--violet)"></span><span><b>Email-Summarizer</b><small>Custom-v2 · latest</small></span><span class="gb">1.0</span></div>
+      <div class="model" id="m-v1"><span class="stripe" style="background:#A991E0"></span><span><b>Email-Summarizer-v1</b><small>older version, kept</small></span><span class="gb">1.0</span></div>
+      <div class="model" id="m-reply"><span class="stripe" style="background:var(--pink)"></span><span><b>Email-Reply</b><small>SFT + DPO replies</small></span><span class="gb">1.0</span></div>
+      <div class="model" id="m-whisper"><span class="stripe" style="background:var(--teal)"></span><span><b>whisper-large-v3-turbo</b><small>speech → text</small></span><span class="gb">1.6</span></div>
+      <div class="model" id="m-kokoro"><span class="stripe" style="background:var(--teal)"></span><span><b>Kokoro-82M</b><small>text → speech</small></span><span class="gb">0.3</span></div>
+    </div>
+    <div class="small" style="text-align:right; margin-top:4px">GB on disk</div>
+    <div class="gpu">
+      <h5><span>RTX 3050 LAPTOP</span><span>6 GB</span></h5>
+      <div class="gbar">
+        <span style="width:17%; background:var(--violet)">summ.</span>
+        <span style="width:17%; background:var(--slate)">orig.</span>
+        <span style="width:17%; background:var(--pink)">reply</span>
+        <span style="width:36%; background:var(--teal)">voice</span>
+      </div>
+      <div class="small" style="margin-top:6px">≈ 5.2 GB with everything loaded</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 05 learning loop ============ -->
+<div class="sec" style="left:70px; top:1118px"><b>05</b>HOW IT KEEPS LEARNING</div>
+
+<div class="step data" id="s-parquet" style="left:70px; top:1162px; width:330px"><span class="k">DATA</span><b>train-0000…parquet</b><small>100 emails with reference summaries</small></div>
+<div class="step" id="s-train" style="left:448px; top:1162px; width:330px"><span class="k">TRAIN.PY</span><b>LoRA fine-tune</b><small>teaches the summary style</small></div>
+<div class="step out-v" id="s-v1" style="left:826px; top:1162px; width:330px"><span class="k">MODEL</span><b>Custom-v1</b><small>first summarizer</small></div>
+<div class="step you" id="s-vote" style="left:1204px; top:1162px; width:330px"><span class="k">YOU · COMPARE MODE</span><b>♥ the better summary</b><small>saved to feedback/preferences.json</small></div>
+<div class="step" id="s-dpo" style="left:1582px; top:1162px; width:330px"><span class="k">TRAIN_DPO.PY</span><b>DPO on your votes</b><small>Train now at 30 · automatic at 40</small></div>
+<div class="step out-v" id="s-v2" style="left:1960px; top:1162px; width:330px"><span class="k">MODEL</span><b>Custom-v2, v3 …</b><small>every older version kept</small></div>
+
+<div class="step data" id="s-dpojson" style="left:70px; top:1300px; width:330px"><span class="k">DATA</span><b>email_dpo.jsonl</b><small>100 emails · chosen vs rejected reply</small></div>
+<div class="step" id="s-rtrain" style="left:448px; top:1300px; width:708px"><span class="k">TRAIN_REPLY_DPO.PY</span><b>SFT, then DPO + likelihood term</b><small>starts from the original Qwen · 10 emails held out to test</small></div>
+<div class="step out-p" id="s-reply" style="left:1204px; top:1300px; width:330px"><span class="k">MODEL</span><b>Email-Reply</b><small>writes the suggested response · saved to models/Email-Reply</small></div>
+
+<!-- hand notes -->
+<div class="hand" style="left:905px; top:752px; width:290px;">nothing ever leaves<br>this laptop</div>
+<div class="hand blue" style="left:1560px; top:240px; width:360px;">≈ 6–10 s per email</div>
+<div class="hand" style="left:1580px; top:1372px; width:250px;">your ♥ taps are the<br>training data</div>
+
+<div class="tblock">
+  <div class="wide">Embrify — system architecture</div>
+  <div><label>SHEET</label><span>1 of 1</span></div>
+  <div><label>REV</label><span>2026-10-03</span></div>
+  <div><label>SCALE</label><span>none</span></div>
+  <div><label>RUNS ON</label><span>Windows · local</span></div>
+  <div><label>SERVER</label><span>:7860</span></div>
+  <div><label>MODELS</label><span>6 · 5.8 GB</span></div>
+</div>
+
+<svg class="wires" id="wires">
+  <defs>
+    <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z" fill="#1D1A26"/></marker>
+    <marker id="a-violet" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z" fill="#6236C9"/></marker>
+    <marker id="a-pink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z" fill="#B82D6E"/></marker>
+    <marker id="a-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z" fill="#0B7285"/></marker>
+  </defs>
+</svg>
+
+<script>
+const svg = document.getElementById("wires");
+const NS = "http://www.w3.org/2000/svg";
+const box = id => document.getElementById(id).getBoundingClientRect();
+function pt(r, side, f = .5) {
+  if (side === "r") return [r.right, r.top + r.height * f];
+  if (side === "l") return [r.left, r.top + r.height * f];
+  if (side === "t") return [r.left + r.width * f, r.top];
+  return [r.left + r.width * f, r.bottom];
+}
+function wire(a, as, b, bs, {color = "#1D1A26", marker = "a-ink", dash = "", label = "", lx = 0, ly = -10, af = .5, bf = .5, both = false, bend = 0.45, width = 2.2, dip = 0} = {}) {
+  const [x1, y1] = pt(box(a), as, af), [x2, y2] = pt(box(b), bs, bf);
+  const dx = Math.abs(x2 - x1) * bend, dy = Math.abs(y2 - y1) * bend;
+  const c1 = as === "r" ? [x1 + dx, y1] : as === "l" ? [x1 - dx, y1] : as === "t" ? [x1, y1 - dy] : [x1, y1 + dy];
+  const c2 = bs === "r" ? [x2 + dx, y2] : bs === "l" ? [x2 - dx, y2] : bs === "t" ? [x2, y2 - dy] : [x2, y2 + dy];
+  c1[1] += dip; c2[1] += dip;
+  const p = document.createElementNS(NS, "path");
+  p.setAttribute("d", `M${x1},${y1} C${c1} ${c2} ${x2},${y2}`);
+  p.setAttribute("fill", "none"); p.setAttribute("stroke", color); p.setAttribute("stroke-width", width);
+  p.setAttribute("stroke-linecap", "round");
+  if (dash) p.setAttribute("stroke-dasharray", dash);
+  p.setAttribute("marker-end", `url(#${marker})`);
+  if (both) p.setAttribute("marker-start", `url(#${marker})`);
+  svg.appendChild(p);
+  if (label) {
+    const t = document.createElementNS(NS, "text");
+    t.setAttribute("x", (x1 + x2) / 2 + lx); t.setAttribute("y", (y1 + y2) / 2 + ly + dip * .75);
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("class", "wlabel"); t.textContent = label;
+    svg.appendChild(t);
+  }
+}
+// page <-> server
+wire("browser", "r", "server", "l", {both: true, af: .2, bf: .13, label: "HTTP", ly: -12});
+wire("launcher", "r", "server", "b", {dash: "9 7", af: .3, bf: .35, label: "starts", lx: -30, ly: 6, bend: .5});
+// server -> assistant / voice
+wire("server", "r", "assistant", "l", {af: .2, bf: .13});
+wire("server", "r", "voice", "l", {af: .5, bf: .3, color: "#0B7285", marker: "a-teal"});
+// assistant / voice -> models
+wire("assistant", "r", "m-v2", "l", {af: .22, color: "#6236C9", marker: "a-violet"});
+wire("assistant", "r", "m-orig", "l", {af: .36, color: "#34495E", marker: "a-ink", bend: .5});
+wire("assistant", "r", "m-reply", "l", {af: .86, color: "#B82D6E", marker: "a-pink"});
+wire("voice", "r", "m-whisper", "l", {af: .4, color: "#0B7285", marker: "a-teal"});
+wire("voice", "r", "m-kokoro", "l", {af: .6, color: "#0B7285", marker: "a-teal"});
+// learning loop
+const ch = ["s-parquet", "s-train", "s-v1", "s-vote", "s-dpo", "s-v2"];
+for (let i = 0; i < ch.length - 1; i++) wire(ch[i], "r", ch[i + 1], "l", {bend: .3, width: 2});
+wire("s-v2", "b", "s-vote", "b", {dash: "6 6", color: "#6236C9", marker: "a-violet", bend: .3, dip: 70, af: .4, bf: .6, label: "next round of votes", ly: 18, width: 2});
+wire("s-v2", "t", "models", "b", {dash: "9 7", color: "#6236C9", marker: "a-violet", bf: .5, bend: .3, label: "new version", lx: 62, ly: 4});
+wire("s-dpojson", "r", "s-rtrain", "l", {bend: .3, width: 2});
+wire("s-rtrain", "r", "s-reply", "l", {bend: .3, width: 2});
+</script>
+</body></html>

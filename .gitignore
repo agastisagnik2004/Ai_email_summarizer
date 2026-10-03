@@ -1,0 +1,17 @@
+# Model weights (5+ GB, above GitHub's file limits). Start Embrify.bat downloads the public ones;
+# trained models stay on the PC where they were trained.
+models/
+
+# Personal data: Compare-mode votes contain the full text of analysed emails
+feedback/
+
+# Unrelated audio dataset
+Kathbath-Bengali-Test-Known/
+
+# Python / local files
+__pycache__/
+*.pyc
+.venv/
+venv/
+voice_test.wav
+*.log

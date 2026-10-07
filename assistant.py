@@ -47,8 +47,10 @@ _DATE = (
     rf"(?:(?:next |this |coming )?{_DAY}(?:\s+(?:morning|afternoon|evening|night|noon|eod))?"
     rf"|{_MONTH}\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?"
     rf"|\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{_MONTH}(?:,?\s+\d{{4}})?"
-    r"|\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?"
-    r"|today|tonight|tomorrow|(?:this|next) (?:week|month)|end of (?:the )?(?:day|week|month)|eod|eow|cob"
+    r"|\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{1,2}\.\d{1,2}\.\d{2,4}"
+    r"|the \d{1,2}(?:st|nd|rd|th)"  # "before the 20th"
+    r"|(?:\d+|one|two|three|four|five|seven|ten)\s+(?:business\s+|working\s+)?(?:hours?|days?|weeks?)"  # "within 3 days"
+    r"|today|tonight|tomorrow|end of (?:the |this |next )?(?:day|week|month)|(?:this|next) (?:week|month)|eod|eow|cob"
     r"|\d{1,2}(?::\d{2})?\s?(?:am|pm)|noon|midnight)"
 )
 # a full "when": up to three date/time parts, e.g. "5:00 PM on October 7, 2026" or "4:00 PM tomorrow, October 2"
@@ -56,9 +58,12 @@ _WHEN = rf"{_DATE}(?:,?\s+(?:on\s+|at\s+)?{_DATE}){{0,2}}"
 DATE_RE = re.compile(rf"\b{_DATE}\b", re.I)
 # a deadline = a deadline word followed (within a few words) by a date: "by Tuesday noon", "scheduled for Oct 8"
 DEADLINE_RE = re.compile(
-    rf"\b(?:by|before|until|no later than|due(?: on| by)?|deadline(?: is)?|latest by|scheduled (?:for|on)|on|at)\b"
-    rf"[\s*_,]+(?:[\w-]+[\s*_,]+){{0,3}}?({_WHEN})\b", re.I)
-STRONG_CUE = re.compile(r"\b(by|before|until|no later than|due|deadline|latest|scheduled|ready|submit|send|meeting|call|review|demo|presentation|interview)\b", re.I)
+    rf"\b(?:by|before|until|no later than|due(?: on| by)?|deadline(?: is)?|latest by|scheduled (?:for|on)|within"
+    rf"|last (?:date|day)\b[^.]{{0,60}}?\bis|(?:closes?|ends?|expires?) on|on|at)\b"
+    rf"[\s*_,:\-–—]+(?:[\w-]+[\s*_,]+){{0,3}}?({_WHEN})\b", re.I)
+STRONG_CUE = re.compile(r"\b(by|before|until|no later than|due|deadline|latest|last date|within|closes?|expires?|scheduled"
+                        r"|ready|submit|send|meeting|call|review|demo|presentation|interview)\b", re.I)
+DURATION = re.compile(r"(?:\d+|one|two|three|four|five|seven|ten)\s+(?:business\s+|working\s+)?(?:hours?|days?|weeks?)", re.I)
 URGENT_WORDS = re.compile(r"\b(urgent(?:ly)?|asap|immediately|right away|critical|emergency|time[- ]sensitive|time[- ]critical"
                           r"|high priority|as a priority|top priority|priority|as soon as possible|at the earliest|action required)\b", re.I)
 SOON = re.compile(r"\b(today|tonight|eod|cob|end of (?:the )?day|tomorrow|within 24 hours|this morning|this afternoon)\b", re.I)
@@ -131,13 +136,22 @@ def rule_deadlines(email):
             if not STRONG_CUE.search(s[: m.end()]) and not re.search(r"\b(by|before|until|due)\b", cue, re.I):
                 continue  # "on Monday" alone is just a date, not a deadline
             when = _clean(m.group(1))
+            if DURATION.match(when) and not re.search(r"\bwithin\W*$", s[: m.start(1)], re.I):
+                continue  # "3 days" is a deadline only as "within 3 days"
+            if DURATION.match(when):
+                when = "Within " + when
             key = re.sub(r"[^a-z0-9]", "", (re.search(rf"{_MONTH}\s+\d{{1,2}}|\d{{1,2}}\s+{_MONTH}|{_DAY}|today|tomorrow|tonight",
                                                       when, re.I) or [when])[0].lower())
             if key in seen:
                 continue
             seen.add(key)
             before = _clean(s[: m.start(1)])
-            before = re.sub(r"(?i)[\s,]*\b(?:by|before|until|no later than|due(?: on| by)?|on|at|for|latest)\s*$", "", before)
+            before = re.sub(r"(?i)[\s,:\-–—]*\b(?:(?:on or )?(?:by|before)(?: the)?|until|no later than|due(?: on| by)?|on|at|for|within"
+                            r"|(?:latest )?by(?: the)? end of|latest(?: by)?)\s*$", "", before)
+            before = re.sub(r"(?i)\s+latest$", "", before).rstrip(" :-–—")
+            if re.fullmatch(r"(?i)(?:the\s+)?(?:deadline|due date|last date)", before):  # "Deadline: 20/10 for the bank details"
+                after = re.sub(r"(?i)^[\s,:\-–—]*(?:for|to)?\s*", "", _clean(s[m.end():])).rstrip(".")
+                before = f"Deadline for {after}" if after else before
             task = _short(before) or _short(s)
             found.append(f"{when[0].upper() + when[1:]}{DEADLINE_SEP}{task}")
     return found
@@ -321,7 +335,7 @@ def _messages(task, email, system=SYSTEM):
 
 def _when_phrase(when):
     """'This Friday' -> 'this Friday' (weekday and month names keep their capital)."""
-    if when and when.split()[0].lower() in {"this", "next", "coming", "end", "today", "tomorrow", "tonight", "eod", "cob"}:
+    if when and when.split()[0].lower().rstrip(",") in {"this", "next", "coming", "end", "today", "tomorrow", "tonight", "eod", "cob"}:
         return when[0].lower() + when[1:]
     return when
 

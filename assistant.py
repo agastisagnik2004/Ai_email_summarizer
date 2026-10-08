@@ -350,6 +350,10 @@ def _deadline_promise(line):
     m = re.match(r"(?i)(?:the\s+)?(.+\b(?:meeting|call|review|demo|presentation|interview|session|workshop))\b.*?\b(?:is|has been)\s+scheduled", task)
     if m:
         return f"I'll be prepared for the {m.group(1)} on {when}"
+    # "We will review the results during the project meeting" -> "I'll be prepared for the project meeting on ..."
+    m = re.search(r"(?i)\b(?:the|a|our|your)\s+((?:[\w-]+\s+){0,2}?(?:meeting|call|review|demo|presentation|interview|session|workshop))\b", task)
+    if m and re.match(r"(?i)(we|i|they|you|the team)\b", task):
+        return f"I'll be prepared for the {m.group(1)} on {when}"
     c = commitment(task)
     return f"I'll {c} by {when}" if c and not re.match(r"(?i)(the|a|an|our|your)\b", c) else f"Noted: {task} ({when})"
 
